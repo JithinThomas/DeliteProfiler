@@ -1,11 +1,11 @@
 
-function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
+function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
-	//var width = window.innerWidth;
-	//var height = window.innerHeight;
+	var nodes = dataModel["nodes"]
+	var nodeNameToId = dataModel["nodeNameToId"]
+	var edges = dataModel["edges"]
 
-	//var graph = d3.select("body").append("svg")
 	var graph = d3.select(cfgDivClass).append("svg")
 		.attr('class', 'dataflowSvg')
 		.attr("width", "100%")
@@ -18,14 +18,10 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 		.attr('height', "100%")
 		.call(d3.behavior.zoom().on("zoom", redraw));
 
-	var graphElements = graph
-		.append('g')
-		//.attr('transform', 'translate(250,250) scale(0.3)');
-		//.attr('transform', 'translate(250,250) scale(1)');
+	var graphElements = graph.append('g')
 
 	function redraw() {
 		graphElements.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")");
-		console.log(d3.event.scale)
 	}
 
 	graph.append('svg:defs').append('svg:marker')
@@ -40,58 +36,11 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 		.attr('stroke-width', '0px')
 		.attr('fill', '#000');
 
-	var nodes = []
-	var nodeNameToId = {}
-	var ops = deg.DEG.ops
-	for (i in ops) {
-	    var n = ops[i].kernelId;
-	    if (!n) n = "undefined"
-	    nodeNameToId[n] = i
-	    nodes.push({id: i, name: n, inputs: ops[i].inputs, outputs: [], depth: 0})
-	}
-
-	var edges = []
-	nodes.forEach(function (n, i) {
-	    if (n.inputs) {
-	        var id = parseInt(n.id)
-	        n.inputs = n.inputs.map(function(_in) {return parseInt(nodeNameToId[_in])})
-	        n.inputs.forEach(function(_in) {
-	                    //edges.push({source: _in, target: id})
-	                    //nodes[_in].outputs.push(id)
-	                    if (nodes[_in]) {
-	                    	edges.push({source: _in, target: id})
-	                    	nodes[_in].outputs.push(id)
-	                    }
-	        })
-	    }
-	})
-
-	function countNumberOfInputs(n) {
-	    if (n) {
-	        return edges.filter(function(e) {return (e.target == parseInt(n.id))}).length
-	    }
-
-	    return 0
-	}
-
-	function countNumberOfOutputs(n) {
-	    if (n) {
-	        return edges.filter(function(e) {return (e.source == parseInt(n.id))}).length
-	    }
-
-	    return 0
-	}
-
-	nodes = nodes.map(function(n) {
-	    n["numInputs"] = countNumberOfInputs(n);
-	    n["numOutputs"] = countNumberOfOutputs(n);
-	    return n;
-	})
-
 	calcDepthOfNodes()
 
 	function calcDepthOfNodes() {
-	    var startingNodes = nodes.filter(function(n) {return (n != undefined) && (n.numInputs == 0)})
+	    //var startingNodes = nodes.filter(function(n) {return (n != undefined) && (n.numInputs == 0)})
+	    var startingNodes = nodes.filter(function(n) {return (n != undefined) && (n.numInputs == 0) && (n.controlDeps) && (n.antiDeps)})
 	    startingNodes.forEach(function(n1) {
 	        n1.depth = 0
 	        getChildren(n1).forEach(function(n2) {updateDepth(n2, 1)})
@@ -111,8 +60,11 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 	    return n.outputs.map(function(i) {return nodes[i]});
 	}
 
+	// TODO: User should have the option to choose whether to include datadeps, antideps, control deps, etc. in color coding
+	//		 Need to rewrite the function to consider the currently selected mode and counts of all these 3 types of deps 
+	//		 when determing color
 	function colorNode(n) {
-	    if (n.numInputs > 0) {
+	    if ((n.numInputs > 0) || ((n.controlDeps) && (n.controlDeps.length > 0)) || ((n.antiDeps) && (n.antiDeps.length > 0))) {
 	        if (n.numOutputs > 0){
 	            return "orange"
 	        }
@@ -155,9 +107,9 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 
 	function getColaDimensions() {
 		var p = $('.dataflowSvg').parent()
-		console.log(p)
-		console.log("width " + p.width())
-		console.log("height " + p.height())
+		//console.log(p)
+		//console.log("width " + p.width())
+		//console.log("height " + p.height())
 		return [p.width(), p.height()];
 	}
 
@@ -165,7 +117,6 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 	    .linkDistance(150)
 	    .avoidOverlaps(true)
 	    .flowLayout('y')
-	    //.size([width, height])
 	    .size(getColaDimensions())
 	    .nodes(nodes)
 	    .links(edges)
@@ -183,8 +134,7 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 	    .enter().append("rect")
 	    .attr("fill", function(d) {return colorNode(d)})
 	    .attr("rx", 5).attr("ry", 5)
-	    //.on("click", function(d) {alert(d.id)})
-	    .on("click", function(d) { kernelClickHandler([1]) })
+	    .on("click", function(d) { console.log(d) })
 	    .attr("class", "dataflow-kernel")
 	    .call(cola.drag);
 
@@ -193,8 +143,7 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 	    .enter().append("text")
 	    .attr("class", "label")
 	    .text(function (d) { return d.name; })
-	    //.on("click", function(d) {alert(d.id)})
-	    .on("click", function(d) { kernelClickHandler([1]) })
+	    .on("click", function(d) { console.log(d) })
 	    .call(cola.drag)
 	    .each(function (d) {
 	        var b = this.getBBox();
@@ -232,6 +181,10 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 		return ((navigator.appName == 'Microsoft Internet Explorer') || ((navigator.appName == 'Netscape') && (new RegExp("Trident/.*rv:([0-9]{1,}[\.0-9]{0,})").exec(navigator.userAgent) != null))); 
 	}
 
+	function parseIntWrapper(n) {
+		return n
+	}
+
 	function controller(dct)
 	{
 		this.nodeNameToId = dct;
@@ -240,14 +193,14 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler) {
 
 		function highlightNode(nodeName) {
 			if (nodeName in nodeNameToId) {
-				var nodeId = parseInt(nodeNameToId[nodeName])
+				var nodeId = parseIntWrapper(nodeNameToId[nodeName])
 				highlightNodeBorder(nodeId)
 			}
 		}
 
 		function unhighlightNode(nodeName) {
 			if (nodeName in nodeNameToId) {
-				var nodeId = parseInt(nodeNameToId[nodeName])
+				var nodeId = parseIntWrapper(nodeNameToId[nodeName])
 				unhighlightNodeBorder(nodeId)
 			}
 		}

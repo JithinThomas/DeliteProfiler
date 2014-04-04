@@ -75,7 +75,8 @@ aside {
 }
 
 li {
-  width: 680px;
+  /* The width setting was causing the list elements in the sidebar to have excessive width*/
+  /*width: 680px;*/ 
 }
 
 a {

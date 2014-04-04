@@ -43,6 +43,11 @@ html,body
 	stroke-width: 6;	
 }
 
+.miniItem4 {
+	fill: brown;
+	stroke-width: 6;	
+}
+
 .timelineWrapper {
 	overflow-x: auto;
 	overflow-y: hidden; 

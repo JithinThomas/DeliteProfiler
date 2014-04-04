@@ -1,56 +1,137 @@
 <html>
 	<head>
-	  <title>Delite Performance Profiler</title>
-	  <link rel="stylesheet" type="text/css" href="jquery.gridster.css">
-	  <link rel="stylesheet" type="text/css" href="demo.css">
-	  <link rel="stylesheet" type="text/css" media="screen" href="editor.css">
-	  <link rel="stylesheet" type="text/css" href="style.css">
-	  <link rel="stylesheet" type="text/css" href="dataflow.css">
-	  <link rel="stylesheet" type="text/css" href="github.css">
-	  <link rel="stylesheet" type="text/css" href="timeline.css">
-	  <script>
-	  </script>
+		<title>Layout test</title>
 	</head>
-
 	<body>
-	  <div class="gridster ready">
-	    <ul style="width: 100%; height: 100%">
-	      <li data-row="1" data-col="1" data-sizex="2" data-sizey="1" class="gs-w">
-	      	<input type="file" id="files" name="files[]" />
-	      </li>
-	      <li data-row="2" data-col="1" data-sizex="1" data-sizey="10" class="gs-w">
-	      	<div id="editor" style="width: inherit; height: inherit;"></div>
-	      </li>
-	      <li data-row="2" data-col="2" data-sizex="1" data-sizey="10" class="gs-w">
-	      	<div class="dataflow" style="width: inherit; height: inherit;"></div>
-	      </li>
-	      <li data-row="3" data-col="1" data-sizex="2" data-sizey="4" class="gs-w">
-	      	<!--div class="timeline" style="width: inherit; height: inherit;"></div-->
-	      	<div class="timeline" style="height: inherit;"></div>
-	      </li>
-	    </ul>
-	  </div>
-	  	<script type="text/javascript" src="http://mbostock.github.com/d3/d3.v2.js"></script>
-        <script type="text/javascript" src="../jquery/dist/jquery.min.js"></script>
-		<script type="text/javascript" src="../context-menu-js/jquery.contextMenu.js"></script>
-		<script type="text/javascript" src="timeline.js"></script>
+		<style type="text/css">
+			div {
+				/*border: 1px solid #DFDFDF;*/
+			}
 
-	    <script type="text/javascript" src="../jquery/dist/jquery.js"></script>
-	    <script type="text/javascript" src="../gridster/dist/jquery.gridster.js" charset="utf-8"></script>
+			#container {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+			}
+
+			#sidebar {
+				position: fixed;
+			  	background: white;
+			  	width: 200px;
+			  	height: 100%;
+			}
+
+			#right {
+				position: absolute;
+				left: 203px;
+				width: 1000px;
+				height: 100%;
+			}
+
+			#code {
+				position: absolute;
+			  	/*background: white;*/
+			  	width: 50%;
+			  	height: 70%;
+			}
+
+			#dfg {
+				position: absolute;
+			  	/*background: white;*/
+			  	width: 50%;
+			  	height: 70%;
+			  	left: 50%;
+			}
+
+			#timeline {
+				position: absolute;
+			  	background: #DDD;
+			  	width: 100%;
+			  	height: 30%;
+			  	top: 70%;
+			}
+    	</style>
+    	<link rel="stylesheet" type="text/css" href="styles/sidebar.css" />
+    	<link rel="stylesheet" type="text/css" href="styles/jquery.gridster.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/demo.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/editor.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/style.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/dataflow.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/github.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/timeline.css">
+
+	  	<div id="container">
+			<div id="accordian">
+				<ul>
+					<li class="active">
+						<h3>Inputs</h3>
+						<ul>
+							<li>
+								<a href="#">
+									<input type="file" id="files1" name="files[]" />
+								</a>
+							</li>
+							<li>
+								<a href="#">
+									<input type="file" id="files2" name="files[]" />
+								</a>
+							</li>
+							<li>
+								<a href="#">
+									<input type="file" id="files3" name="files[]" />
+								</a>
+							</li>
+						</ul>
+					</li>
+					<li>
+						<h3>Windows</h3>
+						<ul>
+							<li><a href="#"><input type="checkbox" id="displayCodeWindow" value="yes">Code window<br></a></li>
+							<li><a href="#"><input type="checkbox" id="displayDfgWindow" value="yes">Dfg window<br></a></li>
+							<li><a href="#"><input type="checkbox" id="displayTimelineWindow" value="yes">Timeline window<br></a></li>
+						</ul>
+					</li>
+					<li>
+						<h3>Code</h3>
+						<ul>
+						</ul>
+					</li>
+					<li>
+						<h3>DFG</h3>
+						<ul>
+						</ul>
+					</li>
+					<li>
+						<h3>Timeline</h3>
+						<ul>
+						</ul>
+					</li>
+				</ul>
+			</div>
+			<div id="right">
+				<div id="code"></div>
+				<div id="dfg"></div>
+				<div id="timeline"></div>
+			</div>
+		</div>
+
+		<!-- external libraries -->
+        <script type="text/javascript" src="../jquery/dist/jquery.min.js"></script>
 	    <script type="text/javascript" src="../ace-editor/ace-builds/src-noconflict/ace.js" charset="utf-8"></script>
-	    <script type="text/javascript" src="editor.js" charset="utf-8"></script>
 	    <script type="text/javascript" src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
 	    <script type="text/javascript" src="../cola/highlight.pack.js"></script>
         <script type="text/javascript" src="../cola/cola.v1.min.js"></script>
         <script type="text/javascript" src="../graphlib-dot/graphlib-dot.min.js"></script>
-        <script type="text/javascript" src="../graphlib-dot/graphlib-dot.js"></script>
-        <!--script type="text/javascript" src="../../sample.deg"></script-->
-        <script type="text/javascript" src="../../HelloSimpleCompiler.deg">
-        </script>
-        <script type="text/javascript" src="dataflow.js"></script>
-        <script type="text/javascript" src="sample_app.txt"></script>
-        <script type="text/javascript" src="read-input-files.js"></script>
 
+        <!-- internal libraries -->
+        <script type="text/javascript" src="dataflow.js"></script>
+        <script type="text/javascript" src="datamodel.js"></script>
+        <script type="text/javascript" src="editor.js" charset="utf-8"></script>
+        <script type="text/javascript" src="read-input-files.js"></script>
+        <script type="text/javascript" src="timeline.js"></script>
+
+        <!-- temporary dependencies -->
+        <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
         <script type="text/javascript" src="../profileDataTest/profileData.js"></script>
 
 	    <script type="text/javascript">
@@ -68,39 +149,29 @@
 	    		c.highlightNode(kernelId)
 	    	}
 
-	    	var widget_margin_w = 5
-	    	var widget_margin_h = 5
-	    	var base_widget_width = (window.innerWidth - (4 * widget_margin_w)) / 2 // Dividing by 2 since the max value of data-sizex == 2
-	    	var base_widget_height = window.innerHeight / 20
-			var gridster = $(".gridster ul").gridster({
-          		//widget_base_dimensions: [550, 55],
-          		widget_base_dimensions: [base_widget_width, base_widget_height],
-          		widget_margins: [widget_margin_w, widget_margin_h],
-          		helper: 'clone',
-	          	resize: {
-	            	enabled: true
-	          	},
-        	}).data('gridster');
+      		var editor = createEditor("code")
+      		var profData = getProfileData(deg.DEG.ops, profileData())
+      		var c = createDataFlowGraph(cola, "#dfg", kernelClickHandler, profData.dependencyData)
+	      	addAppSourceFileHandler("files1", editor)
+	      	createTimeline("#timeline", highlightNodeOnCfg, profData)
+	    </script>
+		<script type="text/javascript">
+			$(document).ready(function () {
+				$('#accordian > ul > li').click(function() {
+					$("#accordian ul li").removeClass("active")
+				    $(this).addClass("active")
 
-      		var editor = createEditor("editor");
-      		var c = createDataFlowGraph(cola, ".dataflow", kernelClickHandler);
-      		
-	      	gridster.disable() // to enable the dragging of the dataflow graph when one of the nodes is clicked and dragged.
-	      	addAppSourceFileHandler("files", editor)
-	    </script>
-	    <script type="text/javascript">
-	    	var p = profileData()
-	    	var dataForTimelineView = []
-            for (i in p.kernels) {
-                var o = {}
-                o["lane"] = p.location[i]
-                o["id"] = p.kernels[i]
-                o["start"] = p.start[i]
-                o["end"] = o["start"] + p.duration[i]
-                dataForTimelineView.push(o)
-            }
-	    	//createTimeline(".timeline", highlightNodeOnCfg);
-	    	createTimeline(".timeline", highlightNodeOnCfg, dataForTimelineView);
-	    </script>
-	</body>
+				    var checkElement = $(this).next()
+				    if ((checkElement.is("ul")) && (checkElement.is(":visible"))) {
+				        return false
+				    }
+				    if ((checkElement.is('ul')) && (!checkElement.is(':visible'))) {
+				        $("#accordian ul:visible").slideUp("normal")
+				        checkElement.slideDown("normal")
+				        return false
+				    }
+			  	})
+			})
+		</script>
+	</body>	
 </html>

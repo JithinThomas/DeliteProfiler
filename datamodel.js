@@ -42,6 +42,7 @@ function getDataForTimelineView(rawProfileData, nodeNameToId) {
         if (!(o.name in nodeNameToId)) {    // TODO: This check needs to be removed once we start extracting bodyOps and condOps
             nodeNameToId[o.name] = count    //         parts of WhileLoop from the DEG file
             dataForTimelineView[count++] = []
+            console.log(o.name)
         } 
 
         o["id"] = nodeNameToId[o.name]
@@ -57,7 +58,7 @@ function getDataForTimelineView(rawProfileData, nodeNameToId) {
 }
 
 
-function initializeNodeDataFromDegFile(node) {
+function initializeNodeDataFromDegFile(node, level) {
     var nodeType = node.type
     var res = []
     var condOpsData = [] // for 'WhileLoop' nodes
@@ -76,12 +77,12 @@ function initializeNodeDataFromDegFile(node) {
         } else if (nodeType == "WhileLoop") {
             var condOps = node.condOps
             for (a in condOps) {
-                condOpsData = condOpsData.concat(initializeNodeDataFromDegFile(condOps[a]))
+                condOpsData = condOpsData.concat(initializeNodeDataFromDegFile(condOps[a], level + 1))
             }
 
             var bodyOps = node.bodyOps
             for (b in bodyOps) {
-                bodyOpsData = bodyOpsData.concat(initializeNodeDataFromDegFile(bodyOps[b]))
+                bodyOpsData = bodyOpsData.concat(initializeNodeDataFromDegFile(bodyOps[b], level + 1))
             }
         }
 
@@ -96,7 +97,11 @@ function initializeNodeDataFromDegFile(node) {
                     type            : getOrElse(nodeType, "unknown"),
                     condOps         : condOpsData,
                     bodyOps         : bodyOpsData,
-                    componentNodes  : componentNodes
+                    componentNodes  : componentNodes,
+                    partitions      : [],   // For MultiLoop and WhileLoop nodes: the different partitions such as x234_1, x234_2, 
+                                            // x234_h, etc. This data will be provided by the timing info
+                    level           : level,
+                    parentId        : -1  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
                 })
 
         return res
@@ -124,25 +129,38 @@ function assignNodeIds(nodes) {
         node.componentNodes.forEach(function(comp) {nodeNameToId[comp] = node.id}) 
     })
 
+    nextId = assignIdsToWhileLoopChildren(nodes, nodeNameToId, nextId)
+    console.log(nextId)
+
+    return nodeNameToId
+}
+
+function assignIdsToWhileLoopChildren(nodes, nodeNameToId, nextId) {
     nodes.filter(function(node) {return node.type == "WhileLoop"}).forEach(function(node) {
         node.condOps.forEach(function(n) {
             n.id = nextId++
+            n.parentId = node.id
             nodeNameToId[n.name] = n.id
         })
+
         node.bodyOps.forEach(function(n) {
             n.id = nextId++
+            n.parentId = node.id
             nodeNameToId[n.name] = n.id
         })
+
+        nextId = assignIdsToWhileLoopChildren(node.condOps, nodeNameToId, nextId)
+        nextId = assignIdsToWhileLoopChildren(node.bodyOps, nodeNameToId, nextId)
     })
 
-    return nodeNameToId
+    return nextId
 }
 
 function getDependencyData(degFileNodes) {
     var nodes = []
     var edges = []
     for (i in degFileNodes) {
-        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i])
+        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i], 0)
         for (j in newNodes) {
             var node = newNodes[j]
             nodes.push(node)
@@ -179,20 +197,11 @@ function getDependencyData(degFileNodes) {
 }
 
 function countNumberOfInputs(n, edges) {
-    if (n) {
-        //return edges.filter(function(e) {return (e.target == parseIntWrapper(n.id))}).length
-        return n.inputs.length
-    }
-
-    return 0
+    return n.inputs.length
 }
 
 function countNumberOfOutputs(n, edges) {
-    if (n) {
-        return n.outputs.length
-    }
-
-    return 0
+    return n.outputs.length
 }
 
 function getOrElse(obj, defaultObj) {

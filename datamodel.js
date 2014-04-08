@@ -1,93 +1,121 @@
 function getProfileData(degFileNodes, rawProfileData) {
-    var dependencyData = getDependencyData(degFileNodes)
-    var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodeNameToId)
-    updateTimeTakenByEachKernel(dependencyData, timelineData)
+    var numThreads = getNumberOfThreads(rawProfileData)
+    var dependencyData = getDependencyData(degFileNodes, numThreads)
+    var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId)
+    updateTimeTakenByLoopKernels(dependencyData)
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }
 
-function updateTimeTakenByEachKernel(dependencyData, timelineData) {
-    var nodeNameToId = dependencyData.nodeNameToId
+function updateTimeTakenByLoopKernels(dependencyData) {
+    function helper(a,b) {
+        var tmp = max(a.time, b.time)
+        if (tmp == a.time) { return a }
+        else { return b }
+    }
+
     var nodes = dependencyData.nodes
-    var totalAppTime = sumAllDurations(timelineData[nodeNameToId.all])
-    for (i in nodes) {
-        var node = nodes[i]
-        var timingData = timelineData[node.id]
-        var totalTimeTakenByNode = sumAllDurations(timingData)
-        var percentageOfAppTimeTakenByNode = (totalTimeTakenByNode * 100) / totalAppTime
-        node["time"] = totalTimeTakenByNode
-        node["percentage_time"] = percentageOfAppTimeTakenByNode
-        node["num_of_runs"] = timingData.length
-    }
+    var totalAppTime = nodes[dependencyData.nodeNameToId.all].time
+    nodes.forEach(function (n) {
+        var len = n.partitions.length
+        if (len > 0) {
+            var headerTime = n.partitions[0].time
+            var paritionWithMaxExecTime = n.partitions.slice(1,len).reduce(function(a,b) {return helper(a,b)})
+            n.time = headerTime + paritionWithMaxExecTime.time
+        }
+
+        n.percentage_time = (n.time * 100) / totalAppTime;
+    })
 }
 
-function sumAllDurations(timingData) {
-    var sum = timingData.reduceRight(function(currSum, currTiming, index, array) {
-        return currSum + currTiming["duration"]
-    }, 0)
-
-    return sum
-}
-
-function getDataForTimelineView(rawProfileData, nodeNameToId) {
+function getDataForTimelineView(rawProfileData, nodes, nodeNameToId) {
     var dataForTimelineView = []
-    var count = 0
-    for (i in nodeNameToId) {
-        dataForTimelineView[count++] = []
-    }
+    var re_partiion = /(.*)_\d+$/g
+    var re_header = /(.*)_h$/g
 
-    for (i in rawProfileData.kernels) {
+    for (var i in rawProfileData.kernels) {
         var o = {}
         o["name"] = rawProfileData.kernels[i]
-        if (!(o.name in nodeNameToId)) {    // TODO: This check needs to be removed once we start extracting bodyOps and condOps
-            nodeNameToId[o.name] = count    //         parts of WhileLoop from the DEG file
-            dataForTimelineView[count++] = []
-            console.log(o.name)
-        } 
-
         o["id"] = nodeNameToId[o.name]
         o["lane"] = rawProfileData.location[i]
         o["start"] = rawProfileData.start[i]
         o["duration"] = rawProfileData.duration[i]
         o["end"] = o["start"] + o["duration"]
 
-        dataForTimelineView[o.id].push(o)
+        nodes[o.id].time += o.duration
+        dataForTimelineView.push(o)
     }
 
     return dataForTimelineView
 }
 
+function createInternalNode(name, level) {
+    return {
+        id              : 0,
+        name            : name,
+        inputs          : [], 
+        outputs         : [], 
+        depth           : 0, 
+        controlDeps     : [], 
+        antiDeps        : [],
+        target          : "",
+        type            : "InternalNode",
+        condOps         : [],
+        bodyOps         : [],
+        componentNodes  : [],
+        partitions      : [],   // For MultiLoop and WhileLoop nodes: the different partitions such as x234_1, 
+                                            // x234_2, x234_h, etc. This data will be provided by the timing info
+        level           : level,
+        parentId        : -1,  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
+        time            : 0
+    }
+}
 
-function initializeNodeDataFromDegFile(node, level) {
+function createPartitionNodes(numNodes, parentName, level) {
+    var newNodes = []
+
+    newNodes.push(createInternalNode(parentName + "_h", level)) // DONT change this order. First add header partition and then others
+    for (var i = 0; i < numNodes; i++) {
+        newNodes.push(createInternalNode(parentName + "_" + i, level))
+    }
+
+    return newNodes
+}
+
+function initializeNodeDataFromDegFile(node, level, numThreads) {
     var nodeType = node.type
     var res = []
     var condOpsData = [] // for 'WhileLoop' nodes
     var bodyOpsData = [] // for 'WhileLoop' nodes
     var componentNodes = [] // for 'MultiLoop' nodes
+    var partitionNodes = [] // for 'WhileLoop' and 'MultiLoop' nodes
     if ((nodeType != "EOP") && (nodeType != "EOG")) {
-        var n = node.kernelId;
-        if (!n) n = node.outputId; // its a WhileLoop. For such nodes, the kernelId is defined as the "outputId" attribute
-        if (!n) {
-            n = "undefined"
+        var name = node.kernelId;
+        if (!name) name = node.outputId; // its a WhileLoop. For such nodes, the kernelId is defined as the "outputId" attribute
+        if (!name) {
+            name = "undefined"
         }
 
         if (nodeType == "MultiLoop") {
             // the 'outputs' attr of the MultiLoop contains the list of kernels that were merged to form the MultiLoop
             componentNodes = node.outputs
+            partitionNodes = createPartitionNodes(numThreads, name, level + 1)
         } else if (nodeType == "WhileLoop") {
             var condOps = node.condOps
             for (a in condOps) {
-                condOpsData = condOpsData.concat(initializeNodeDataFromDegFile(condOps[a], level + 1))
+                condOpsData = condOpsData.concat(initializeNodeDataFromDegFile(condOps[a], level + 1, numThreads))
             }
 
             var bodyOps = node.bodyOps
             for (b in bodyOps) {
-                bodyOpsData = bodyOpsData.concat(initializeNodeDataFromDegFile(bodyOps[b], level + 1))
+                bodyOpsData = bodyOpsData.concat(initializeNodeDataFromDegFile(bodyOps[b], level + 1, numThreads))
             }
+
+            partitionNodes = createPartitionNodes(numThreads, name, level + 1)
         }
 
-        res.push({  id              : 0, 
-                    name            : n, 
+        var n =  {  id              : 0, 
+                    name            : name, 
                     inputs          : getOrElse(node.inputs, []), 
                     outputs         : [], 
                     depth           : 0, 
@@ -98,11 +126,17 @@ function initializeNodeDataFromDegFile(node, level) {
                     condOps         : condOpsData,
                     bodyOps         : bodyOpsData,
                     componentNodes  : componentNodes,
-                    partitions      : [],   // For MultiLoop and WhileLoop nodes: the different partitions such as x234_1, x234_2, 
-                                            // x234_h, etc. This data will be provided by the timing info
+                    partitions      : partitionNodes,   // For MultiLoop and WhileLoop nodes: the different partitions such as x234_1, 
+                                                        // x234_2, x234_h, etc. This data will be provided by the timing info
                     level           : level,
-                    parentId        : -1  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
-                })
+                    parentId        : -1,  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
+                    time            : 0,
+                    sourceContext   : {},
+                 }
+
+        updateSourceContext(n, node.sourceContext)
+        res.push(n)
+        res = res.concat(condOpsData).concat(bodyOpsData).concat(partitionNodes)
 
         return res
     }
@@ -110,6 +144,20 @@ function initializeNodeDataFromDegFile(node, level) {
     return []
 }
 
+function updateSourceContext(node, sc) {
+    var sourceContext = {"file": "", "line": 0}
+    if (sc) {
+        var arr = sc.fileName.split("/")
+        sourceContext.file = arr[arr.length - 1]
+        sourceContext.line = parseInt(sc.line)
+    } else {
+        console.log("WARNING: SourceContext info not available for kernel: " + ((node.name)))
+    }
+
+    node.sourceContext = sourceContext
+}
+
+// TODO: Find out the resolution strategy used in Delite when a kernel has been generated for multiple targets
 function getKernelTargetPlatform(supportedTargets, defaultVal) {
     if (supportedTargets) {
         return supportedTargets[0]
@@ -129,78 +177,72 @@ function assignNodeIds(nodes) {
         node.componentNodes.forEach(function(comp) {nodeNameToId[comp] = node.id}) 
     })
 
-    nextId = assignIdsToWhileLoopChildren(nodes, nodeNameToId, nextId)
-    console.log(nextId)
+    nextId = assignParentIdsToWhileLoopChildren(nodes, nodeNameToId, nextId)
 
     return nodeNameToId
 }
 
-function assignIdsToWhileLoopChildren(nodes, nodeNameToId, nextId) {
-    nodes.filter(function(node) {return node.type == "WhileLoop"}).forEach(function(node) {
-        node.condOps.forEach(function(n) {
-            n.id = nextId++
-            n.parentId = node.id
-            nodeNameToId[n.name] = n.id
-        })
+function assignParentIdsToWhileLoopChildren(nodes, nodeNameToId, nextId) {
+    nodes.filter(function(node) {return (node.type == "WhileLoop") || (node.type == "MultiLoop")})
+         .forEach(function(node) {
+            node.condOps.forEach(function(n) {
+                n.parentId = node.id
+            })
 
-        node.bodyOps.forEach(function(n) {
-            n.id = nextId++
-            n.parentId = node.id
-            nodeNameToId[n.name] = n.id
-        })
+            node.bodyOps.forEach(function(n) {
+                n.parentId = node.id
+            })
 
-        nextId = assignIdsToWhileLoopChildren(node.condOps, nodeNameToId, nextId)
-        nextId = assignIdsToWhileLoopChildren(node.bodyOps, nodeNameToId, nextId)
+            node.partitions.forEach(function(n) {
+                n.parentId = node.id
+            })
+
+            nextId = assignParentIdsToWhileLoopChildren(node.condOps, nodeNameToId, nextId)
+            nextId = assignParentIdsToWhileLoopChildren(node.bodyOps, nodeNameToId, nextId)
     })
 
     return nextId
 }
 
-function getDependencyData(degFileNodes) {
+function getDependencyData(degFileNodes, numThreads) {
     var nodes = []
-    var edges = []
     for (i in degFileNodes) {
-        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i], 0)
+        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i], 0, numThreads)
         for (j in newNodes) {
             var node = newNodes[j]
             nodes.push(node)
         }
     }
 
+    nodes.push(createInternalNode("all", 0)) // HACK: Dummy node to store the total time taken by the app
+    nodes.push(createInternalNode("eop", 0)) // HACK: Dummy node
+
     var nodeNameToId = assignNodeIds(nodes)
     nodes.forEach(function (n, i) {
         var id = n.id
         n.inputs = n.inputs.map(function(_in) {return nodeNameToId[_in]})
         n.inputs.forEach(function(_in) {
-                        edges.push({source: _in, target: id})
                         nodes[_in].outputs.push(id)
         })
 
         n.controlDeps = n.controlDeps.map(function(_in) {return nodeNameToId[_in]})
-        n.controlDeps.forEach(function(_in) {
-                        nodes[_in].outputs.push(id)
-        })
-
         n.antiDeps = n.antiDeps.map(function(_in) {return nodeNameToId[_in]})
-        n.antiDeps.forEach(function(_in) {
-                        nodes[_in].outputs.push(id)
-        })
     })
 
     nodes = nodes.map(function(n) {
-        n["numInputs"] = countNumberOfInputs(n, edges);
-        n["numOutputs"] = countNumberOfOutputs(n, edges);
+        n["numInputs"] = countNumberOfInputs(n);
+        n["numOutputs"] = countNumberOfOutputs(n);
         return n;
     })
 
-    return {"nodes": nodes, "nodeNameToId": nodeNameToId, "edges": edges}
+    return {"nodes": nodes, "nodeNameToId": nodeNameToId}
 }
 
-function countNumberOfInputs(n, edges) {
+function countNumberOfInputs(n) {
     return n.inputs.length
 }
 
-function countNumberOfOutputs(n, edges) {
+function countNumberOfOutputs(n) {
     return n.outputs.length
 }
 
@@ -210,4 +252,19 @@ function getOrElse(obj, defaultObj) {
     }
 
     return defaultObj
+}
+
+function getNumberOfThreads(rawProfileData) {
+    return (rawProfileData.location.filter(onlyUnique).length - 1)
+}
+
+// helper function used to find unique values in a given array
+// obtained from http://stackoverflow.com/questions/1960473/unique-values-in-an-array
+function onlyUnique(value, index, self) { 
+    return self.indexOf(value) === index;
+}
+
+function max(a,b) {
+    if (a >= b) { return a }
+    else { return b }
 }

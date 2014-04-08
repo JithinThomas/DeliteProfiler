@@ -1,8 +1,8 @@
 
 var rectHeight = 20;
 
-function createTimeline(timelineDivClass, selectKernelNodeOnCfg, profileData) {
-	console.log(profileData.dependencyData.nodes)
+function createTimeline(timelineDivClass, profileData, config) {
+	var highlightNodeOnGraphView = config.markGraphNode
 	items = [].concat.apply([], profileData.timelineData)
 
 	///*
@@ -193,6 +193,7 @@ function createTimeline(timelineDivClass, selectKernelNodeOnCfg, profileData) {
 		.on("mouseover", mouseover)
 		.on("mouseout", mouseout)
 		.on("mousemove", mousemove)
+		.on("click", selectNode)
 		.on("contextmenu", function(data, index) {
 		    console.log("ContextMenu event fired!!")
 		    //d3.event.preventDefault();
@@ -218,9 +219,7 @@ function createTimeline(timelineDivClass, selectKernelNodeOnCfg, profileData) {
 	*/
 
 	function selectNode(d) {
-		//var kernelId = "" + d.id
-		var kernelId = "" + d.name
-		selectKernelNodeOnCfg(kernelId)
+		highlightNodeOnGraphView(d.id)
 	}
 
 	function scrollTimeLine(numPixels) {

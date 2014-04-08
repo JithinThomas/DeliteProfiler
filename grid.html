@@ -99,6 +99,14 @@
 					<li>
 						<h3>DFG</h3>
 						<ul>
+							<li>
+								<a href="#">	
+									<select id="colorSchemeForGraph">
+										<option value="datadeps">Data Dependencies</option>
+										<option value="time">Execution Time</option>
+									</select>
+								</a>
+							</li>
 						</ul>
 					</li>
 					<li>
@@ -106,11 +114,51 @@
 						<ul>
 						</ul>
 					</li>
+					<li class="active">
+						<h3>Kernel Info</h3>
+						<ul>
+							<li>
+								<table id="kernelInfoTable">
+									<th>Property</th>
+									<th>Value</th> 
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td></td>
+										<td></td> 
+									</tr>
+								</table>
+							</li>
+						</ul>
+					</li>
 				</ul>
 			</div>
 			<div id="right">
 				<div id="code"></div>
-				<div id="dfg"></div>
+				<div id="dfg">
+				</div>
 				<div id="timeline"></div>
 			</div>
 		</div>
@@ -135,27 +183,29 @@
         <script type="text/javascript" src="../profileDataTest/profileData.js"></script>
 
 	    <script type="text/javascript">
-	    	var currentlyHighlightedCfgNodeId = ""
-	    	function kernelClickHandler(lines) {
-	    		highlightLines(editor, lines)
-	    	}
+	    	var viewState = {}
+	    	viewState.highlightedGraphNode = -1
+	    	viewState.appSourceFileName = ""
+	    	viewState.highlightedLine = new aceRange(0,0,0,0)
+	    	viewState.graphViewMode = $("#colorSchemeForGraph").val()
 
-	    	function highlightNodeOnCfg(kernelId) {
-	    		if (currentlyHighlightedCfgNodeId != "") {
-	    			c.unhighlightNode(currentlyHighlightedCfgNodeId)
-	    		}
-
-	    		currentlyHighlightedCfgNodeId = kernelId
-	    		c.highlightNode(kernelId)
-	    	}
+	    	var config = {}
+	    	config.markGraphNode = markGraphNode
+	    	config.highlightLineInEditor = highlightLineInEditor
+	    	config.populateKernelInfoTable = populateKernelInfoTable
 
       		var editor = createEditor("code")
       		var profData = getProfileData(deg.DEG.ops, profileData())
-      		var c = createDataFlowGraph(cola, "#dfg", kernelClickHandler, profData.dependencyData)
+      		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
 	      	addAppSourceFileHandler("files1", editor)
-	      	createTimeline("#timeline", highlightNodeOnCfg, profData)
-	    </script>
-		<script type="text/javascript">
+	      	createTimeline("#timeline", profData, config)
+
+	      	$("#colorSchemeForGraph").change(function() {
+	      		var colorScheme = $(this).val()
+	      		graphController.changeColoringScheme(colorScheme)
+	      		viewState.graphViewMode = colorScheme
+	      	})
+
 			$(document).ready(function () {
 				$('#accordian > ul > li').click(function() {
 					$("#accordian ul li").removeClass("active")
@@ -172,6 +222,34 @@
 				    }
 			  	})
 			})
+
+	    	function markGraphNode(kernelId) {
+	    		var n = viewState.highlightedGraphNode
+	    		if (n != -1) {
+	    			graphController.unhighlightNode(n)
+	    		}
+
+	    		graphController.highlightNode(kernelId)
+	    		viewState.highlightedGraphNode = kernelId
+	    	}
+
+	    	function highlightLineInEditor(line, isValidLine) {
+    			unhighlightLine(viewState.highlightedLine)
+    			if (isValidLine) {
+	    			viewState.highlightedLine = highlightLine(line)
+	    		}
+	    	}
+
+	    	function populateKernelInfoTable(node) {
+	    		var properties = ["Name", "Type", "Target", "Time (%)"]
+	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %"]
+	    		var table = $("#kernelInfoTable")[0]
+	    		properties.forEach(function(p, i) {
+	    			var row = table.rows[i + 1]
+	    			row.cells[0].innerHTML = p
+	    			row.cells[1].innerHTML = values[i]
+	    		})
+	    	}
 		</script>
 	</body>	
 </html>

@@ -7,15 +7,12 @@ function handleFileSelect(evt) {
 
   	reader.onload = (function() {
     	return function(e) {
-    	    //var span = document.createElement('span');
-
-      		//span.innerHTML = e.target.result
-      		//document.getElementById('list').insertBefore(span, null);
       		editor.setValue(e.target.result)
     	};
   	})();
 
   	reader.readAsText(appSourceFile);
+    viewState.appSourceFileName = appSourceFile.name
 }
 
 function addAppSourceFileHandler(inputButtonId, editorDiv) {

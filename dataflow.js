@@ -1,12 +1,86 @@
 
-function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
+function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, config) {
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
 	var nodes = dataModel["nodes"]
 	var nodeNameToId = dataModel["nodeNameToId"]
-	var edges = dataModel["edges"]
 
-	var graph = d3.select(cfgDivClass).append("svg")
+	//console.log(nodes[10])
+
+	// Filter out the nodes that need to displayed as per the config
+	//updateInputsDataOfWhileLoops(nodes)
+
+	var res = filterNodes(nodes)
+	var nodesToDisplay = res.nodesToDisplay
+	var nodeIdToDisplayIndex = res.nodeIdToDisplayIndex
+
+	var edges = computeEdges(nodesToDisplay, nodeIdToDisplayIndex)
+
+	function updateInputsDataOfWhileLoops(nodes) {
+		function helper(ns) {
+			var inputs = []
+			var outputs = []
+			ns.forEach(function(n) {
+				inputs = inputs.concat(n.inputs)
+				outputs = outputs.concat(n.outputs)
+			})
+
+			return {"inputs": inputs, "outputs": outputs}
+		}
+
+		nodes.filter(function(n) {return n.type == "WhileLoop"})
+			.forEach(function(n) {
+			 	updateInputsDataOfWhileLoops(n.condOps)
+			 	updateInputsDataOfWhileLoops(n.bodyOps)
+
+			 	tmp = helper(n.condOps)
+			 	n.inputs = n.inputs.concat(tmp.inputs)
+			 	n.outputs = n.inputs.concat(tmp.outputs)
+
+			 	tmp = helper(n.bodyOps)
+			 	n.inputs = n.inputs.concat(tmp.inputs)
+			 	n.outputs = n.inputs.concat(tmp.outputs)
+		})
+	}
+
+	function filterNodes(nodes) {
+		// TODO: We would need to adjust the edges based on the level
+		// eg: If x1 depends on x2, which is an inner component of WhileLoop x3,
+		// then the edge should be from x3 to x1. Does that sound right?
+
+		var nodeIdToDisplayIndex = {}
+		var nodesToDisplay = nodes.filter(function(n) {return (n.type != "InternalNode")})
+		/*
+		var tmp = nodes.filter(function(n) {return (n.type != "InternalNode") && (n.level == 0)})
+		var nodesToDisplay = []
+		nodesToDisplay = nodesToDisplay.concat(tmp)
+		tmp.forEach(function(n) {
+			n.inputs.map(function(i) {return nodes[i]}).forEach(function(m) {if (m.level != 0) {nodesToDisplay.push(m)}})
+			n.outputs.map(function(i) {return nodes[i]}).forEach(function(m) {if (m.level != 0) {nodesToDisplay.push(m)}})
+		})
+		*/
+
+		nodesToDisplay.forEach(function(n, i) {nodeIdToDisplayIndex[n.id] = i})
+
+		return {"nodesToDisplay": nodesToDisplay, "nodeIdToDisplayIndex": nodeIdToDisplayIndex}
+	}
+
+	function toDisplayIndex(nodeId) {
+		return nodeIdToDisplayIndex[nodeId]
+	}
+
+	function computeEdges(nodes, nodeIdToDisplayIndex) {
+		var edges = []
+		nodes.forEach(function (n) {
+			n.inputs.forEach(function(m) {
+				edges.push({source: toDisplayIndex(m), target: toDisplayIndex(n.id)})
+			})
+		})
+
+		return edges
+	}
+
+	var graph = d3.select(destinationDivElem).append("svg")
 		.attr('class', 'dataflowSvg')
 		.attr("width", "100%")
 		.attr("height", "100%")
@@ -39,12 +113,18 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 	calcDepthOfNodes()
 
 	function calcDepthOfNodes() {
-	    //var startingNodes = nodes.filter(function(n) {return (n != undefined) && (n.numInputs == 0)})
-	    var startingNodes = nodes.filter(function(n) {return (n != undefined) && (n.numInputs == 0) && (n.controlDeps) && (n.antiDeps)})
+	    var startingNodes = nodesToDisplay.filter(function(n) {return (n != undefined) && (n.numInputs == 0) && (n.controlDeps) && (n.antiDeps)})
 	    startingNodes.forEach(function(n1) {
 	        n1.depth = 0
-	        getChildren(n1).forEach(function(n2) {updateDepth(n2, 1)})
+	        getChildren(n1).forEach(function(n2) { updateDepth(n2, 1)})
 	    })
+	}
+
+	function getChildren(n) {
+	    return n.outputs.map(function(id) {
+	    	var displayId = toDisplayIndex(id)
+	    	return nodesToDisplay[displayId]
+	    });
 	}
 
 	function updateDepth(node, depth) {
@@ -56,15 +136,11 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 	    }
 	}
 
-	function getChildren(n) {
-	    return n.outputs.map(function(i) {return nodes[i]});
-	}
-
 	// TODO: User should have the option to choose whether to include datadeps, antideps, control deps, etc. in color coding
 	//		 Need to rewrite the function to consider the currently selected mode and counts of all these 3 types of deps 
-	//		 when determing color
-	function colorNode(n) {
-	    if ((n.numInputs > 0) || ((n.controlDeps) && (n.controlDeps.length > 0)) || ((n.antiDeps) && (n.antiDeps.length > 0))) {
+	//		 when determining color
+	function colorNodeBasedOnDataDeps(n) {
+	    if (n.numInputs > 0) {
 	        if (n.numOutputs > 0){
 	            return "orange"
 	        }
@@ -78,38 +154,28 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 	    }
 	}
 
+	var maxTimeTakenByAKernel = nodesToDisplay.map(function(n) {return n.percentage_time}).sort(function(a,b) {return b - a})[1]
+	var colorNodeBasedOnTimeTaken = d3.scale.linear()
+								    .domain([0, maxTimeTakenByAKernel])
+								    .range(["white", "red"]);
+
+
+
 	var constraints = []
-	function generateConstraints1() {
-	    edges.map(function(e) {return {source: nodes[e.source], target: nodes[e.target]}})
+	function generateConstraints() {
+	    edges.map(function(e) {return {source: nodesToDisplay[e.source], target: nodesToDisplay[e.target]}})
 	         .forEach(function(e) {
 	            var s = e.source
 	            var t = e.target
 	            var minDiffInY = (t.depth - s.depth) * 15
-	            constraints.push({"axis": "y", "left": s.id, "right": t.id, "gap": minDiffInY})
+	            constraints.push({"axis": "y", "left": toDisplayIndex(s.id), "right": toDisplayIndex(t.id), "gap": minDiffInY})
 	         })
 	}
 
-	function generateConstraints2() {
-	    nodes.forEach(function(n1) {
-	        nodes.forEach(function(n2) {
-	            if (n1.depth < n2.depth) {
-	                var minDiffInY = (n2.depth - n1.depth) * 15
-	                constraints.push({"axis": "y", "left": n1.id, "right": n2.id, "gap": minDiffInY})
-	            } else if (n1.depth > n2.depth) {
-	                var minDiffInY = (n1.depth - n2.depth) * 15
-	                constraints.push({"axis": "y", "left": n2.id, "right": n1.id, "gap": minDiffInY})
-	            }
-	        })
-	    })
-	}
-
-	generateConstraints1()
+	generateConstraints()
 
 	function getColaDimensions() {
 		var p = $('.dataflowSvg').parent()
-		//console.log(p)
-		//console.log("width " + p.width())
-		//console.log("height " + p.height())
 		return [p.width(), p.height()];
 	}
 
@@ -118,7 +184,7 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 	    .avoidOverlaps(true)
 	    .flowLayout('y')
 	    .size(getColaDimensions())
-	    .nodes(nodes)
+	    .nodes(nodesToDisplay)
 	    .links(edges)
 	    .constraints(constraints)
 	    .jaccardLinkLengths();
@@ -130,20 +196,22 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 
 	var margin = 6, pad = 12;
 	var node = graphElements.selectAll(".node")
-	    .data(nodes)
+	    .data(nodesToDisplay)
 	    .enter().append("rect")
-	    .attr("fill", function(d) {return colorNode(d)})
+	    .attr("fill", function(d) {return colorNodeBasedOnDataDeps(d)})
 	    .attr("rx", 5).attr("ry", 5)
-	    .on("click", function(d) { console.log(d) })
+	    //.on("click", function(d) {  })
+	    .on("click", function(d) { nodeClickHandler(d) })
 	    .attr("class", "dataflow-kernel")
 	    .call(cola.drag);
 
 	var label = graphElements.selectAll(".label")
-	    .data(nodes)
+	    .data(nodesToDisplay)
 	    .enter().append("text")
 	    .attr("class", "label")
 	    .text(function (d) { return d.name; })
-	    .on("click", function(d) { console.log(d) })
+	    //.on("click", function(d) { console.log(d) })
+	    .on("click", function(d) { nodeClickHandler(d) })
 	    .call(cola.drag)
 	    .each(function (d) {
 	        var b = this.getBBox();
@@ -181,43 +249,46 @@ function createDataFlowGraph(cola, cfgDivClass, kernelClickHandler, dataModel) {
 		return ((navigator.appName == 'Microsoft Internet Explorer') || ((navigator.appName == 'Netscape') && (new RegExp("Trident/.*rv:([0-9]{1,}[\.0-9]{0,})").exec(navigator.userAgent) != null))); 
 	}
 
-	function parseIntWrapper(n) {
-		return n
+	function nodeClickHandler(node) {
+		var sc = node.sourceContext
+		if (sc.file == viewState.appSourceFileName) {
+			config.highlightLineInEditor(sc.line, true)
+			console.log(sc.line)
+		} else {
+			console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
+			config.highlightLineInEditor(sc.line, false) // HACK
+		}
+
+		config.populateKernelInfoTable(node)
 	}
 
-	function controller(dct)
+	function controller()
 	{
-		this.nodeNameToId = dct;
 		this.highlightNode = highlightNode;
 		this.unhighlightNode = unhighlightNode;
+		this.changeColoringScheme = changeColoringScheme;
 
-		function highlightNode(nodeName) {
-			if (nodeName in nodeNameToId) {
-				var nodeId = parseIntWrapper(nodeNameToId[nodeName])
-				highlightNodeBorder(nodeId)
-			}
-		}
-
-		function unhighlightNode(nodeName) {
-			if (nodeName in nodeNameToId) {
-				var nodeId = parseIntWrapper(nodeNameToId[nodeName])
-				unhighlightNodeBorder(nodeId)
-			}
-		}
-
-		function highlightNodeBorder(nodeId) {
+		function highlightNode(nodeId) {
 			var n = $(".dataflow-kernel")[nodeId]
 			n.setAttribute("stroke-width", "12px")
-
-			return n
 		}
 
-		function unhighlightNodeBorder(nodeId) {
+		function unhighlightNode(nodeId) {
 			var n = $(".dataflow-kernel")[nodeId]
 			n.setAttribute("stroke-width", "0px")
 		}
+
+		function changeColoringScheme(scheme) {
+			if (scheme == "datadeps") {
+				graphElements.selectAll(".dataflow-kernel")
+			    			 .attr("fill", function(d) {return colorNodeBasedOnDataDeps(d)})
+			} else if (scheme == "time") {
+				graphElements.selectAll(".dataflow-kernel")
+			    			 .attr("fill", function(d) {return colorNodeBasedOnTimeTaken(d.percentage_time)})
+			}
+		}
 	}
 
-	return new controller(nodeNameToId)
+	return new controller()
 }
 

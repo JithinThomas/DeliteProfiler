@@ -1,19 +1,35 @@
 
+var aceRange = ace.require('ace/range').Range;
+
 function createEditor(editorId) {
 	var editor = ace.edit(editorId);
     editor.setTheme("ace/theme/twilight");
     editor.getSession().setMode("ace/mode/scala");
-    //editor.getValue(); // or session.getValue
-
-    //var aceRange = ace.require('ace/range').Range;
-    //editor.getSession().addMarker(new aceRange(1,0,3,3), "ace_selection", "text", "true")
+    editor.setReadOnly(true)
+    editor.setAnimatedScroll(true)
 
     return editor
 }
 
-function highlightLines(editor, lines) {
-	var aceRange = ace.require('ace/range').Range;
-	for (i in lines) {
-		editor.getSession().addMarker(new aceRange(lines[i],0,lines[i],10), "ace_selection", "text", "true")
-	}
+function highlightLine(line) {
+    var lineIndex = line - 1
+    var r = new aceRange(lineIndex,0,lineIndex,10000)
+    var res = editor.addSelectionMarker(r)
+    editor.scrollToLine(line,true)
+
+    return res
 }
+
+function unhighlightLine(r) {
+    //var r = new aceRange(line,0,line,10000)
+    editor.removeSelectionMarker(r)
+    //editor.scrollToLine(line,true)
+}
+
+/*
+function unhighlightLine(line) {
+    var r = new aceRange(line,0,line,10000)
+    editor.removeSelectionMarker(r)
+    editor.scrollToLine(line,true)
+}
+*/

@@ -58,6 +58,34 @@ background: #003040;
 	transition: all 0.15s;
 }
 
+#kernelInfoTable  {
+	color: white;
+	background: white;
+	text-decoration: none;
+	font-size: 10px;
+	line-height: 27px;
+	display: block;
+	width: 200px;
+	border: 1px solid black;
+	text-align:center;
+	border-collapse: collapse;
+}
+
+#kernelInfoTable th {
+	border-width: 1px;
+	border-style: solid;
+	border-color: #666666;
+	background-color: #dedede;
+	color: black;
+}
+#kernelInfoTable td {
+	border-width: 1px;
+	border-style: solid;
+	border-color: #666666;
+	background-color: #ffffff;
+	color: black;
+}
+
 /*hover effect on links*/
 #accordian ul ul li a:hover {
 	background: #003545;
@@ -67,6 +95,7 @@ background: #003040;
 #accordian ul ul {
 	display: none;
 }
+
 #accordian li.active ul {
 	display: block;
 }

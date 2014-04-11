@@ -90,6 +90,7 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		.attr('class', 'background')
 		.attr('width', "100%")
 		.attr('height', "100%")
+		.on("click", function() {$(".dataflow-kernel").fadeTo(0, 1)})
 		.call(d3.behavior.zoom().on("zoom", redraw));
 
 	var graphElements = graph.append('g')
@@ -198,11 +199,10 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	var node = graphElements.selectAll(".node")
 	    .data(nodesToDisplay)
 	    .enter().append("rect")
-	    .attr("fill", function(d) {return colorNodeBasedOnDataDeps(d)})
+	    .attr("fill", colorNodeBasedOnDataDeps)
 	    .attr("rx", 5).attr("ry", 5)
 	    .attr("nodeId", function(d) {return d.id})
-	    //.on("click", function(d) {  })
-	    .on("click", function(d) { nodeClickHandler(d) })
+	    .on("click", nodeClickHandler)
 	    .attr("class", "dataflow-kernel")
 	    .call(cola.drag);
 
@@ -211,8 +211,7 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	    .enter().append("text")
 	    .attr("class", "label")
 	    .text(function (d) { return d.name; })
-	    //.on("click", function(d) { console.log(d) })
-	    .on("click", function(d) { nodeClickHandler(d) })
+	    .on("click", nodeClickHandler)
 	    .call(cola.drag)
 	    .each(function (d) {
 	        var b = this.getBBox();
@@ -254,13 +253,32 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		var sc = node.sourceContext
 		if (sc.file == viewState.appSourceFileName) {
 			config.highlightLineInEditor(sc.line, true)
-			console.log(sc.line)
 		} else {
 			console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
 			config.highlightLineInEditor(sc.line, false) // HACK
 		}
 
 		config.populateKernelInfoTable(node)
+
+		// Highlight neighboring nodes
+		var arr = getNeighbors(node)
+		arr.push(node.id)
+		highlightNodes(arr)
+	}
+
+	function getNeighbors(node) {
+		var neighbors = []
+		neighbors = neighbors.concat(node.inputs)
+		neighbors = neighbors.concat(node.outputs)
+
+		return neighbors
+	}
+
+	function highlightNodes(nodeIds) {
+		$(".dataflow-kernel").fadeTo(0, 0.1)
+		var s = nodeIds.reduce(function(p,c,i,a) {return p + "[nodeId=" + c + "],"}, "")
+		s = s.substring(0,s.length - 1)
+		$(s).fadeTo(0, 1)
 	}
 
 	function controller()

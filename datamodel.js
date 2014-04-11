@@ -1,7 +1,7 @@
-function getProfileData(degFileNodes, rawProfileData) {
+function getProfileData(degFileNodes, rawProfileData, config) {
     var numThreads = getNumberOfThreads(rawProfileData)
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId)
+    var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
     updateTimeTakenByLoopKernels(dependencyData)
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
@@ -28,10 +28,8 @@ function updateTimeTakenByLoopKernels(dependencyData) {
     })
 }
 
-function getDataForTimelineView(rawProfileData, nodes, nodeNameToId) {
+function getDataForTimelineView(rawProfileData, nodes, nodeNameToId, config) {
     var dataForTimelineView = []
-    var re_partiion = /(.*)_\d+$/g
-    var re_header = /(.*)_h$/g
 
     for (var i in rawProfileData.kernels) {
         var o = {}
@@ -41,8 +39,12 @@ function getDataForTimelineView(rawProfileData, nodes, nodeNameToId) {
         o["start"] = rawProfileData.start[i]
         o["duration"] = rawProfileData.duration[i]
         o["end"] = o["start"] + o["duration"]
+        o["node"] = nodes[o.id]
 
-        nodes[o.id].time += o.duration
+        if (!(config.syncNodeRegex.test(o.name))) {
+            nodes[o.id].time += o.duration
+        }
+        
         dataForTimelineView.push(o)
     }
 
@@ -99,7 +101,8 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
         if (nodeType == "MultiLoop") {
             // the 'outputs' attr of the MultiLoop contains the list of kernels that were merged to form the MultiLoop
             componentNodes = node.outputs
-            partitionNodes = createPartitionNodes(numThreads, name, level + 1)
+            //partitionNodes = createPartitionNodes(numThreads, name, level + 1)
+            partitionNodes = createPartitionNodes(numThreads, name, level)
         } else if (nodeType == "WhileLoop") {
             var condOps = node.condOps
             for (a in condOps) {
@@ -111,7 +114,8 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
                 bodyOpsData = bodyOpsData.concat(initializeNodeDataFromDegFile(bodyOps[b], level + 1, numThreads))
             }
 
-            partitionNodes = createPartitionNodes(numThreads, name, level + 1)
+            //partitionNodes = createPartitionNodes(numThreads, name, level + 1)
+            partitionNodes = createPartitionNodes(numThreads, name, level)
         }
 
         var n =  {  id              : 0, 

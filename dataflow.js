@@ -200,6 +200,7 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	    .enter().append("rect")
 	    .attr("fill", function(d) {return colorNodeBasedOnDataDeps(d)})
 	    .attr("rx", 5).attr("ry", 5)
+	    .attr("nodeId", function(d) {return d.id})
 	    //.on("click", function(d) {  })
 	    .on("click", function(d) { nodeClickHandler(d) })
 	    .attr("class", "dataflow-kernel")
@@ -269,12 +270,12 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		this.changeColoringScheme = changeColoringScheme;
 
 		function highlightNode(nodeId) {
-			var n = $(".dataflow-kernel")[nodeId]
+			var n = $(".dataflow-kernel")[toDisplayIndex(nodeId)]
 			n.setAttribute("stroke-width", "12px")
 		}
 
 		function unhighlightNode(nodeId) {
-			var n = $(".dataflow-kernel")[nodeId]
+			var n = $(".dataflow-kernel")[toDisplayIndex(nodeId)]
 			n.setAttribute("stroke-width", "0px")
 		}
 

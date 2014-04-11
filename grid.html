@@ -96,7 +96,7 @@
 						<ul>
 						</ul>
 					</li>
-					<li>
+					<li class="active">
 						<h3>DFG</h3>
 						<ul>
 							<li>
@@ -109,9 +109,18 @@
 							</li>
 						</ul>
 					</li>
-					<li>
+					<li class="active">
 						<h3>Timeline</h3>
 						<ul>
+							<li>
+								<a href="#">	
+									<select id="timelineLevelFilter">
+										<option value="0">Level 0</option>
+										<option value="1">Level 1</option>
+										<option value="2">Level 2</option>
+									</select>
+								</a>
+							</li>
 						</ul>
 					</li>
 					<li class="active">
@@ -180,7 +189,8 @@
 
         <!-- temporary dependencies -->
         <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <script type="text/javascript" src="../profileDataTest/profileData.js"></script>
+        <!--script type="text/javascript" src="../profileDataTest/profileData.js"></script-->
+        <script type="text/javascript" src="profileData-new.js"></script>
 
 	    <script type="text/javascript">
 	    	var viewState = {}
@@ -188,17 +198,20 @@
 	    	viewState.appSourceFileName = ""
 	    	viewState.highlightedLine = new aceRange(0,0,0,0)
 	    	viewState.graphViewMode = $("#colorSchemeForGraph").val()
+	    	viewState.selectedLevel = -1
 
 	    	var config = {}
 	    	config.markGraphNode = markGraphNode
 	    	config.highlightLineInEditor = highlightLineInEditor
 	    	config.populateKernelInfoTable = populateKernelInfoTable
+	    	config.syncNodeRegex = /__sync_ExecutionThread-(\d+)_(.*)_(\d+)$/
 
       		var editor = createEditor("code")
-      		var profData = getProfileData(deg.DEG.ops, profileData())
+      		var profData = getProfileData(deg.DEG.ops, profileData(), config)
       		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+
 	      	addAppSourceFileHandler("files1", editor)
-	      	createTimeline("#timeline", profData, config)
+	      	var timelineController = createTimeline("#timeline", profData, config)
 
 	      	$("#colorSchemeForGraph").change(function() {
 	      		var colorScheme = $(this).val()
@@ -206,7 +219,10 @@
 	      		viewState.graphViewMode = colorScheme
 	      	})
 
+	      	$("#timelineLevelFilter").change(filterNodesOnTimeline)
+
 			$(document).ready(function () {
+				/*
 				$('#accordian > ul > li').click(function() {
 					$("#accordian ul li").removeClass("active")
 				    $(this).addClass("active")
@@ -221,7 +237,27 @@
 				        return false
 				    }
 			  	})
+				*/
+
+			  	filterNodesOnTimeline()
 			})
+
+			function filterNodesOnTimeline() {
+				var selectedLevel = parseInt($("#timelineLevelFilter").val())
+	      		console.log(selectedLevel)
+	      		for (var i = 0; i < 4; i++) {
+	      			var filter = "level=level-" + i
+	      			if (i != selectedLevel) {
+			      		timelineController.hideNodes("text[" + filter + "]")
+			      		timelineController.hideNodes("rect[" + filter + "]")
+	      			} else {
+	      				timelineController.showNodes("text[" + filter + "]")
+			      		timelineController.showNodes("rect[" + filter + "]")
+	      			}
+	      		}
+
+	      		viewState.selectedLevel = selectedLevel
+			}
 
 	    	function markGraphNode(kernelId) {
 	    		var n = viewState.highlightedGraphNode

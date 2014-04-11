@@ -2,10 +2,11 @@
 var rectHeight = 20;
 
 function createTimeline(timelineDivClass, profileData, config) {
-	var highlightNodeOnGraphView = config.markGraphNode
 	items = [].concat.apply([], profileData.timelineData)
 
-	///*
+	var re_partition = /^(.*)_(\d+)$/
+	var re_header = /^(.*)_h$/
+
 	var table = d3.select(timelineDivClass).append("table")
 	    .attr("class", "tooltip")
 	    .attr("position", "absolute")
@@ -16,7 +17,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	table.append("col")
 		.style("width", "40%")
-	//*/
 
 	var columns = ["name", "value"]
 	var datapoints = ["name", "target", "type", "# runs", "time", "% of tot time", "mem_alloc"]
@@ -27,19 +27,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 	}
 
 	function tabulate(data, columns) {
-		/*
-		var table = d3.select(timelineDivClass).append("table")
-		    .attr("class", "tooltip")
-		    .attr("position", "absolute")
-		    .style("opacity", 0);
-
-		table.append("col")
-			.style("width", "60%")
-
-		table.append("col")
-			.style("width", "40%")
-		*/
-
 		// In the next statement, any non-empty array can be used as input to 'data'
 		// Refer to http://stackoverflow.com/questions/14514776/updating-an-html-table-in-d3-js-using-a-reusable-chart
 		table.selectAll('thead').data([0]).enter().append('thead');
@@ -91,7 +78,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 	var parentDiv = $('#timeline')
 
 	var m = [20, 15, 15, 120], //top right bottom left
-		chartWidth = 2000,	// TODO: Set the width of the timeline view dynamically
+		chartWidth = 2200,	// TODO: Set the width of the timeline view dynamically
 		chartHeight = parentDiv.height();
 
 	//scales
@@ -108,8 +95,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 				.attr("float", "right")
 				.attr("class", "timeLineWrapper")
 
-	//console.log(div2)
-
 	$('timeLineWrapper').css("width", "" + parentDiv.width() + "px")
 
 	var chart = div2
@@ -117,44 +102,9 @@ function createTimeline(timelineDivClass, profileData, config) {
 				.attr("width", chartWidth)
 				.attr("class", "chart");
 
-	//console.log($('.chart').width())
-
 	var timelineGraph = chart.append("g")
 				.attr("width", chartWidth)
 				.attr("class", "mini");
-
-	function mousemove(d) {
-        d3.select("table")
-          .style("left", d3.select(this).attr("x") + "px")     
-    	  .style("top", (parseFloat(d3.select(this).attr("y")) + rectHeight + 1) + "px");
-    }
-
-  	function mouseover(p) {
-      	d3.select("table").transition()
-          .duration(500)
-          .style("opacity", 1);
-      	d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
-      	d3.selectAll(".column text").classed("active", function(d, i) { return i == p.x; });
-
-      	/*
-      	console.log(p.id)
-      	var displayDataForNode = getDisplayDataForNode(profileData.dependencyData.nodes[p.id])
-      	var data = []
-		for (i in datapoints) {
-			data.push({name: datapoints[i], value: displayDataForNode[i]})
-		}
-		*/
-
-      	tabulate(data, columns)
-  	}
-
-  	function mouseout() {
-      	d3.select("table").transition()
-          .duration(500)
-          .style("opacity", 1e-6);
-  	}
-
-  	//console.log(timelineGraph)
 
 	//timeline lanes and texts
 	timelineGraph.append("g").selectAll(".laneLines")
@@ -164,10 +114,8 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("y1", function(d) {return y(d.lane + 0.5);})
 		.attr("x2", chartWidth)
 		.attr("y2", function(d) {return y(d.lane + 0.5);})
-		//.on("mouseover", mouseover)
-		//.on("mouseout", mouseout)
-		//.on("mousemove", mousemove)
-		.attr("stroke", "black");
+		.attr("stroke", "black")
+		.attr("class", "laneLine");
 
 	timelineGraph.append("g").selectAll(".laneText")
 		.data(lanes)
@@ -183,46 +131,201 @@ function createTimeline(timelineDivClass, profileData, config) {
 	timelineGraph.append("g").selectAll("miniItems")
 		.data(items)
 		.enter().append("rect")
-		.attr("class", function(d) {return "miniItem" + d.lane;})
+		.attr("class", getClassNameForRect)
+		.attr("level", getLevelAttr)
 		.attr("x", function(d) {return x(d.start);})
 		.attr("y", function(d) {return y(d.lane + .5) - rectHeight/2;})
 		.attr("width", function(d) {return x(d.end) - x(d.start);})
 		.attr("height", rectHeight)
-		//.attr("id", function(d) {return d.id})
 		.attr("id", function(d) {return d.id})
+		.attr("name", function(d) {return getNodeName(d.name)})
+		.attr("title", "rectangle")
+		.attr("vector-effect", "non-scaling-stroke") // from http://stackoverflow.com/questions/10357292/how-to-make-stroke-width-immune-to-the-current-transformation-matrix
 		.on("mouseover", mouseover)
 		.on("mouseout", mouseout)
 		.on("mousemove", mousemove)
 		.on("click", selectNode)
 		.on("contextmenu", function(data, index) {
-		    console.log("ContextMenu event fired!!")
 		    //d3.event.preventDefault();
 		});
 
-	/*
 	//timeline labels
-	var minDurationReqForDisplayingLabel = 30
+	var minDurationReqForDisplayingLabel = 5000
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
 	timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)
 		.enter().append("text")
-		.text(function(d) {return d.id;})
-		//.text(function(d) {return d.name;})
+		.text(getText)
+		.attr("level", getLevelAttr)
 		.attr("x", function(d) {return (x(d.start) + x(d.end))/2;})
 		.attr("y", function(d) {return y(d.lane + .5);})
 		.attr("dy", ".5ex")
+		.attr("title", "sample title")
+		.attr("class", "timelineNodeName")
 		.on("mouseover", mouseover)
 		.on("mouseout", mouseout)
 		.on("mousemove", mousemove)
 		.on("click", selectNode)
 		.attr("text-anchor", "middle");
-	*/
+
+	nameToIds = indexNodesByName(items)
+
+	function mousemove(d) {
+        d3.select("table")
+          .style("left", d3.select(this).attr("x") + "px")     
+    	  .style("top", (parseFloat(d3.select(this).attr("y")) + rectHeight + 1) + "px");
+    }
+
+  	function mouseover(p) {
+      	d3.select("table").transition()
+          .duration(500)
+          .style("opacity", 1);
+      	d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
+      	d3.selectAll(".column text").classed("active", function(d, i) { return i == p.x; });
+
+      	tabulate(data, columns)
+  	}
+
+  	function mouseout() {
+      	d3.select(".tooltip").transition()
+          .duration(500)
+          .style("opacity", 1e-6);
+  	}
 
 	function selectNode(d) {
-		highlightNodeOnGraphView(d.id)
+		config.markGraphNode(d.id)
 	}
 
-	function scrollTimeLine(numPixels) {
-		$('.timeLineWrapper').scrollleft(numPixels)
+	function getLevelAttr(d) {
+		var node = d.node
+		if (node && ((node.type == "WhileLoop") || (node.level > 0) || (node.type == "InternalNode"))) {
+			return "level-" + node.level
+		}
+
+		return ""
 	}
+
+	function getNodeName(name) {
+		var m = name.match(re_partition)
+		if (m) {
+			return m[1]
+		}
+
+		m = name.match(re_header)
+		if (m) {
+			return m[1]
+		}
+
+		return name
+	}
+
+	function getOpacity(d) {
+		if (config.syncNodeRegex.test(d.name)) {
+			return 0.1
+		}
+
+		return 1.0
+	}
+
+	function getClassNameForRect(d) {
+		if (config.syncNodeRegex.test(d.name)) {
+			return "sync-node"
+		}
+
+		return "miniItem" + d.lane;
+	}
+
+	function getText(d) {
+		if (config.syncNodeRegex.test(d.name)) {
+			return ""
+		}
+
+		return d.name;
+	}
+
+	function scroll(numPixels) {
+		document.getElementsByClassName("timelineWrapper")[0].scrollLeft = numPixels
+	}
+
+	function hideNodes(selector) {
+		$(selector).hide()
+	}
+
+	function showNodes(selector) {
+		$(selector).show()
+	}
+
+	// NOTE: Performs horizontal zoom only
+	function zoom(scale) {
+		var t = "scale(" + scale + ", 1)"
+		for (var i = 0; i <= 4; i++) {
+			var className = ".miniItem" + i
+			d3.selectAll(className).attr("transform", t)
+		}
+
+		d3.selectAll(".sync-node").attr("transform", t)			
+		d3.selectAll(".timelineNodeName").attr("x", function(d) {return scale*((x(d.start) + x(d.end))/2);})
+		d3.select(".chart").attr("width", scale * chartWidth)
+		d3.selectAll(".laneLine").attr("x2", scale * chartWidth)
+	}
+
+	function hideSyncNodes() {
+		$(".sync-node").hide()
+	}
+
+	function showSyncNodes() {
+		$(".sync-node").show()
+	}
+
+	function indexNodesByName(items) {
+		function addToMap(key, val) {
+			if (!(key in nameToIds)) {
+				nameToIds[key] = []
+			}
+
+			nameToIds[key].push(val)
+		}
+
+		var nameToIds = {}
+		items.forEach(function(n, i) {
+			addToMap(n.name, i)
+
+			// TODO: Ideally, the datamodel should have provided the hierarchical info within the data.
+			//		 Refine the datamodel and remove the need for this regex check
+			var m = n.name.match(re_partition) 
+			if (m) {
+				addToMap(m[1], i)
+			} else {
+				m = n.name.match(re_header) 
+				if (m) {
+					addToMap(m[1], i)
+				}
+			}
+		})
+
+		return nameToIds
+	}
+
+	function highlightNodesByName(name) {
+		name = getNodeName(name)
+		d3.selectAll("[name=" + name + "]").style("stroke-width", "2")
+	}
+
+	function unhighlightNodesByName(name) {
+		name = getNodeName(name)
+		d3.selectAll("[name=" + name + "]").style("stroke-width", "1")
+	}
+
+	function controller() {
+		this.hideNodes = hideNodes
+		this.showNodes = showNodes
+		this.zoom = zoom
+		this.hideSyncNodes = hideSyncNodes
+		this.showSyncNodes = showSyncNodes	
+		this.scroll = scroll
+		this.highlightNodesByName = highlightNodesByName
+		this.unhighlightNodesByName = unhighlightNodesByName
+	}
+
+	return new controller()
 }

@@ -25,22 +25,26 @@ html,body
 
 .miniItem0 {
 	fill: orange;
-	stroke-width: 6;	
+	stroke-width: 1;	
+	stroke: black;	
 }
 
 .miniItem1 {
 	fill: green;
-	stroke-width: 6;	
+	stroke-width: 1;	
+	stroke: black;	
 }
 
 .miniItem2 {
 	fill: lightskyblue;
-	stroke-width: 6;	
+	stroke-width: 1;	
+	stroke: black;	
 }
 
 .miniItem3 {
 	fill: red;
-	stroke-width: 6;	
+	stroke-width: 1;	
+	stroke: black;	
 }
 
 .miniItem4 {
@@ -70,6 +74,14 @@ html,body
     pointer-events: none;
     border-collapse: collapse;
 }
+
 .tooltipValue {
     border:1px solid black;
+}
+
+.sync-node {
+	fill: grey;
+	opacity: 0.5;
+	stroke-width: 1;	
+	stroke: black;	
 }

@@ -2,7 +2,17 @@
 var rectHeight = 20;
 
 function createTimeline(timelineDivClass, profileData, config) {
-	items = [].concat.apply([], profileData.timelineData)
+	// TODO: Rename the variable 'items' 
+	var items = getDataInTimelineFormat(profileData.timelineData.timing)
+
+	function getDataInTimelineFormat(data) {
+		var res = []
+		for (key in data) {
+			res = res.concat(data[key])
+		}
+
+		return res
+	}
 
 	var re_partition = /^(.*)_(\d+)$/
 	var re_header = /^(.*)_h$/
@@ -57,7 +67,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 	}
 
 	function getDisplayDataForNode(node) {
-		console.log(node)
 		var data = [node.name,
 					node.target,
 					node.type,
@@ -67,13 +76,19 @@ function createTimeline(timelineDivClass, profileData, config) {
 					"NA"]
 		return data
 	}
+
+	function getAppBeginAndEndTimes(items) {
+		var appNode = items.filter(function(n) {return n.name == "all"})[0]
+		return {"begin": appNode.start, "end": appNode.end, "duration": appNode.duration}
+	}
 	  
-	// TODO: i.  Find the number of lanes and generate their names automatically
-	//		 ii. Find the values for timeBegin and timeEnd automatically
-	var lanes = ["T0", "T1","T2","T3", "T4"],
-		numLanes = lanes.length,
-		timeBegin = 2500,
-		timeEnd = 512800;
+	var lanes = profileData.timelineData.lanes
+	var colors = ["orange", "green", "lightskyblue", "red", "brown"]
+	var laneColors = lanes.map(function(l, i) {return colors[i % colors.length]})
+	var	numLanes = lanes.length
+	var tmp = getAppBeginAndEndTimes(items)
+	var	timeBegin = tmp.begin - tmp.duration * 0.01
+	var	timeEnd = tmp.end + tmp.duration * 0.01
 
 	var parentDiv = $('#timeline')
 
@@ -128,7 +143,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("class", "laneText");
 
 	//timeline item rects
-	timelineGraph.append("g").selectAll("miniItems")
+	timelineGraph.append("g").selectAll("nodes")
 		.data(items)
 		.enter().append("rect")
 		.attr("class", getClassNameForRect)
@@ -141,6 +156,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("name", function(d) {return getNodeName(d.name)})
 		.attr("title", "rectangle")
 		.attr("vector-effect", "non-scaling-stroke") // from http://stackoverflow.com/questions/10357292/how-to-make-stroke-width-immune-to-the-current-transformation-matrix
+		.style("fill", getRectFill)
 		.on("mouseover", mouseover)
 		.on("mouseout", mouseout)
 		.on("mousemove", mousemove)
@@ -151,6 +167,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	//timeline labels
 	var minDurationReqForDisplayingLabel = 5000
+	//var minDurationReqForDisplayingLabel = 0
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
 	timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)
@@ -169,6 +186,14 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("text-anchor", "middle");
 
 	nameToIds = indexNodesByName(items)
+
+	function getRectFill(d) {
+		if (config.syncNodeRegex.test(d.name)) {
+			return "grey"
+		}
+
+		return laneColors[d.lane]
+	}
 
 	function mousemove(d) {
         d3.select("table")
@@ -232,15 +257,11 @@ function createTimeline(timelineDivClass, profileData, config) {
 			return "sync-node"
 		}
 
-		return "miniItem" + d.lane;
+		return "timingNode"
 	}
 
 	function getText(d) {
-		if (config.syncNodeRegex.test(d.name)) {
-			return ""
-		}
-
-		return d.name;
+		return d.displayText
 	}
 
 	function scroll(numPixels) {
@@ -258,11 +279,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 	// NOTE: Performs horizontal zoom only
 	function zoom(scale) {
 		var t = "scale(" + scale + ", 1)"
-		for (var i = 0; i <= 4; i++) {
-			var className = ".miniItem" + i
-			d3.selectAll(className).attr("transform", t)
-		}
-
+		d3.selectAll(".timingNode").attr("transform", t)
 		d3.selectAll(".sync-node").attr("transform", t)			
 		d3.selectAll(".timelineNodeName").attr("x", function(d) {return scale*((x(d.start) + x(d.end))/2);})
 		d3.select(".chart").attr("width", scale * chartWidth)

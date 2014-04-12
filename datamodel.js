@@ -1,7 +1,8 @@
 function getProfileData(degFileNodes, rawProfileData, config) {
     var numThreads = getNumberOfThreads(rawProfileData)
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
+    //var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
+    var timelineData = getDataForTimelineView_mod(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
     updateTimeTakenByLoopKernels(dependencyData)
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
@@ -48,7 +49,78 @@ function getDataForTimelineView(rawProfileData, nodes, nodeNameToId, config) {
         dataForTimelineView.push(o)
     }
 
-    return dataForTimelineView
+    return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
+}
+
+function addToMap(map, key, value) {
+    if (!(key in map)) {
+        map[key] = []
+    }
+
+    map[key].push(value)
+}
+
+function getDataForTimelineView_mod(rawProfileData, nodes, nodeNameToId, config) {
+    // TODO: Create a hierarchical model for the timeline data
+    //       dataForTimelineView would be a map of NodeName -> [Timing data]
+    //       Each node can have children. And when the user goes into lower levels,
+    //       the node may or may not retain its opacity depending on whether it has children.
+    var dataForTimelineView = {}
+    var syncNodes = []
+
+    for (var i in rawProfileData.kernels) {
+        var o = {}
+        o["name"] = rawProfileData.kernels[i]
+        o["id"] = nodeNameToId[o.name]
+        o["lane"] = rawProfileData.location[i]
+        o["start"] = rawProfileData.start[i]
+        o["duration"] = rawProfileData.duration[i]
+        o["end"] = o["start"] + o["duration"]
+        o["node"] = nodes[o.id]
+        o["displayText"] = getDisplayTextForTimelineNode(o.name)
+        o["syncNodes"] = []
+
+        if (!(config.syncNodeRegex.test(o.name))) {
+            nodes[o.id].time += o.duration
+            addToMap(dataForTimelineView, o.name, o)
+        } else {
+            syncNodes.push(o)
+        }
+    }
+
+    assignSyncNodesToParents(dataForTimelineView, syncNodes)
+
+    return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
+}
+
+function getDisplayTextForTimelineNode(name) {
+    var m = name.match(config.syncNodeRegex)
+    if (m) {
+        return m[3] + "(T" + m[4] + ")"
+    } 
+
+    return name
+}
+
+function assignSyncNodesToParents(dataForTimelineView, syncNodes) {
+    console.log(dataForTimelineView)
+    syncNodes.forEach(function(n) {
+        var m = n.name.match(config.syncNodeRegex)
+        var parentName = m[2]
+        //console.log("node: " + n.name + " parent: " + parentName)
+        //console.log(n)
+        //console.log(parentName)
+        //console.log(dataForTimelineView[parentName])
+        if (parentName == "null") { // top-level sync barrier
+            addToMap(dataForTimelineView, n.name, n)
+        } else {
+            var parent = dataForTimelineView[parentName].filter(function(p) {
+                return (p.start <= n.start) && (n.end <= p.end)
+            })[0]   // There should be just one element in the filtered list anyways
+
+            parent.syncNodes.push(n)
+        }
+    })
 }
 
 function createInternalNode(name, level) {

@@ -23,6 +23,11 @@ html,body
 	font: 12px sans-serif;	
 }
 
+.timingNode {
+	stroke-width: 1;	
+	stroke: black;
+}
+
 .miniItem0 {
 	fill: orange;
 	stroke-width: 1;	
@@ -49,7 +54,8 @@ html,body
 
 .miniItem4 {
 	fill: brown;
-	stroke-width: 6;	
+	stroke-width: 1;	
+	stroke: black;		
 }
 
 .timelineWrapper {
@@ -80,8 +86,7 @@ html,body
 }
 
 .sync-node {
-	fill: grey;
-	opacity: 0.5;
+	opacity: 0.4;
 	stroke-width: 1;	
 	stroke: black;	
 }

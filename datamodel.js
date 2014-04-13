@@ -254,8 +254,6 @@ function assignParentIdsToWhileLoopChildren(nodes, nodeNameToId, nextId) {
             node.partitions.forEach(function(n) {
                 n.parentId = node.id
                 n.target = node.target
-                console.log(node.target)
-                console.log(n)
             })
 
             nextId = assignParentIdsToWhileLoopChildren(node.condOps, nodeNameToId, nextId)

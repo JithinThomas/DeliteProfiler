@@ -5,8 +5,6 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	var nodes = dataModel["nodes"]
 	var nodeNameToId = dataModel["nodeNameToId"]
 
-	//console.log(nodes[10])
-
 	// Filter out the nodes that need to displayed as per the config
 	//updateInputsDataOfWhileLoops(nodes)
 
@@ -268,8 +266,13 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 
 	function getNeighbors(node) {
 		var neighbors = []
-		neighbors = neighbors.concat(node.inputs)
-		neighbors = neighbors.concat(node.outputs)
+		if (node.type == "WhileLoop") {
+			neighbors = neighbors.concat(node.condOps.map(function(n) {return n.id}))
+			neighbors = neighbors.concat(node.bodyOps.map(function(n) {return n.id}))
+		} else {
+			neighbors = neighbors.concat(node.inputs)
+			neighbors = neighbors.concat(node.outputs)
+		}
 
 		return neighbors
 	}

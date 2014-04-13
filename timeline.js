@@ -185,8 +185,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.on("click", selectNode)
 		.attr("text-anchor", "middle");
 
-	//nameToIds = indexNodesByName(items)
-
 	function getRectFill(d) {
 		if (config.syncNodeRegex.test(d.name)) {
 			return "grey"
@@ -272,6 +270,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 	}
 
 	function scroll(numPixels) {
+		console.log("Scrolling " + numPixels)
 		document.getElementsByClassName("timelineWrapper")[0].scrollLeft = numPixels
 	}
 
@@ -301,37 +300,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 		$(".sync-node").show()
 	}
 
-	/*
-	function indexNodesByName(items) {
-		function addToMap(key, val) {
-			if (!(key in nameToIds)) {
-				nameToIds[key] = []
-			}
-
-			nameToIds[key].push(val)
-		}
-
-		var nameToIds = {}
-		items.forEach(function(n, i) {
-			addToMap(n.name, i)
-
-			// TODO: Ideally, the datamodel should have provided the hierarchical info within the data.
-			//		 Refine the datamodel and remove the need for this regex check
-			var m = n.name.match(re_partition) 
-			if (m) {
-				addToMap(m[1], i)
-			} else {
-				m = n.name.match(re_header) 
-				if (m) {
-					addToMap(m[1], i)
-				}
-			}
-		})
-
-		return nameToIds
-	}
-	*/
-
 	function highlightNodesByName(name) {
 		name = getNodeName(name)
 		d3.selectAll("[name=" + name + "]").style("stroke-width", "2")
@@ -342,6 +310,19 @@ function createTimeline(timelineDivClass, profileData, config) {
 		d3.selectAll("[name=" + name + "]").style("stroke-width", "1")
 	}
 
+	function scrollToNode(name) {
+		var lst = profileData.timelineData.timing[name]
+		if (lst) {
+			var d = lst[0]
+			var xCoord = x(d.start)
+			var scrollAmt = xCoord - 500
+			if (scrollAmt < 0) scrollAmt = 0
+			scroll(scrollAmt)
+		} else {
+			console.log(profileData.timelineData.timing)
+		}
+	}
+
 	function controller() {
 		this.hideNodes = hideNodes
 		this.showNodes = showNodes
@@ -349,6 +330,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		this.hideSyncNodes = hideSyncNodes
 		this.showSyncNodes = showSyncNodes	
 		this.scroll = scroll
+		this.scrollToNode = scrollToNode
 		this.highlightNodesByName = highlightNodesByName
 		this.unhighlightNodesByName = unhighlightNodesByName
 	}

@@ -100,10 +100,11 @@
 						<h3>DFG</h3>
 						<ul>
 							<li>
-								<a href="#">	
+								<a href="#">
+									<span>Color Scheme</span>	
 									<select id="colorSchemeForGraph">
-										<option value="datadeps">Data Dependencies</option>
-										<option value="time">Execution Time</option>
+										<option value="datadeps">Data Deps</option>
+										<option value="time">Exec Time</option>
 									</select>
 								</a>
 							</li>
@@ -113,12 +114,19 @@
 						<h3>Timeline</h3>
 						<ul>
 							<li>
-								<a href="#">	
+								<a href="#">
+									<span>Level Filter</span>	
 									<select id="timelineLevelFilter">
 										<option value="0">Level 0</option>
 										<option value="1">Level 1</option>
 										<option value="2">Level 2</option>
 									</select>
+								</a>
+							</li>
+							<li>
+								<a href="#">
+									<span>Zoom </span>
+									<input type="text" id="timelineZoom" size="5" value="100" style="text-align: right"> %
 								</a>
 							</li>
 						</ul>
@@ -229,6 +237,12 @@
 	      		graphController.changeColoringScheme(colorScheme)
 	      		viewState.graphViewMode = colorScheme
 	      	})
+
+	      	$('#timelineZoom').keyup(function(event){
+			    if(event.keyCode == 13){
+			        timelineController.zoom($(this).val() / 100)
+			    }
+			})
 
 	      	$("#timelineLevelFilter").change(filterNodesOnTimeline)
 

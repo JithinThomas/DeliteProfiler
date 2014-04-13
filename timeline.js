@@ -185,7 +185,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.on("click", selectNode)
 		.attr("text-anchor", "middle");
 
-	nameToIds = indexNodesByName(items)
+	//nameToIds = indexNodesByName(items)
 
 	function getRectFill(d) {
 		if (config.syncNodeRegex.test(d.name)) {
@@ -218,6 +218,13 @@ function createTimeline(timelineDivClass, profileData, config) {
   	}
 
 	function selectNode(d) {
+		if (d.type == "sync") {
+			config.populateSyncNodeInfoTable(d)
+		} else if (d.type == "execution") {
+			var n = profileData.dependencyData.nodes[d.id]
+			config.populateKernelInfoTable(n)
+		}
+
 		config.markGraphNode(d.id)
 	}
 
@@ -294,6 +301,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		$(".sync-node").show()
 	}
 
+	/*
 	function indexNodesByName(items) {
 		function addToMap(key, val) {
 			if (!(key in nameToIds)) {
@@ -322,6 +330,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 		return nameToIds
 	}
+	*/
 
 	function highlightNodesByName(name) {
 		name = getNodeName(name)

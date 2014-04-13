@@ -1,8 +1,7 @@
 function getProfileData(degFileNodes, rawProfileData, config) {
     var numThreads = getNumberOfThreads(rawProfileData)
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    //var timelineData = getDataForTimelineView(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
-    var timelineData = getDataForTimelineView_mod(rawProfileData, dependencyData.nodes, dependencyData.nodeNameToId, config)
+    var timelineData = getDataForTimelineView(rawProfileData, dependencyData, config)
     updateTimeTakenByLoopKernels(dependencyData)
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
@@ -29,29 +28,6 @@ function updateTimeTakenByLoopKernels(dependencyData) {
     })
 }
 
-function getDataForTimelineView(rawProfileData, nodes, nodeNameToId, config) {
-    var dataForTimelineView = []
-
-    for (var i in rawProfileData.kernels) {
-        var o = {}
-        o["name"] = rawProfileData.kernels[i]
-        o["id"] = nodeNameToId[o.name]
-        o["lane"] = rawProfileData.location[i]
-        o["start"] = rawProfileData.start[i]
-        o["duration"] = rawProfileData.duration[i]
-        o["end"] = o["start"] + o["duration"]
-        o["node"] = nodes[o.id]
-
-        if (!(config.syncNodeRegex.test(o.name))) {
-            nodes[o.id].time += o.duration
-        }
-        
-        dataForTimelineView.push(o)
-    }
-
-    return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
-}
-
 function addToMap(map, key, value) {
     if (!(key in map)) {
         map[key] = []
@@ -60,11 +36,13 @@ function addToMap(map, key, value) {
     map[key].push(value)
 }
 
-function getDataForTimelineView_mod(rawProfileData, nodes, nodeNameToId, config) {
+function getDataForTimelineView(rawProfileData, dependencyData, config) {
     // TODO: Create a hierarchical model for the timeline data
     //       dataForTimelineView would be a map of NodeName -> [Timing data]
     //       Each node can have children. And when the user goes into lower levels,
     //       the node may or may not retain its opacity depending on whether it has children.
+    var nodes = dependencyData.nodes
+    var nodeNameToId = dependencyData.nodeNameToId
     var dataForTimelineView = {}
     var syncNodes = []
 
@@ -79,11 +57,15 @@ function getDataForTimelineView_mod(rawProfileData, nodes, nodeNameToId, config)
         o["node"] = nodes[o.id]
         o["displayText"] = getDisplayTextForTimelineNode(o.name)
         o["syncNodes"] = []
-
+        o["dep_thread"] = "" // important for sync nodes - specifies the thread the sync was expecting a result from
+        o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
+ 
         if (!(config.syncNodeRegex.test(o.name))) {
             nodes[o.id].time += o.duration
+            o.type = "execution"
             addToMap(dataForTimelineView, o.name, o)
         } else {
+            o.type = "sync"
             syncNodes.push(o)
         }
     }
@@ -103,14 +85,12 @@ function getDisplayTextForTimelineNode(name) {
 }
 
 function assignSyncNodesToParents(dataForTimelineView, syncNodes) {
-    console.log(dataForTimelineView)
     syncNodes.forEach(function(n) {
         var m = n.name.match(config.syncNodeRegex)
         var parentName = m[2]
-        //console.log("node: " + n.name + " parent: " + parentName)
-        //console.log(n)
-        //console.log(parentName)
-        //console.log(dataForTimelineView[parentName])
+        n.dep_kernel = m[3]
+        n.dep_thread = "T" + m[4]
+
         if (parentName == "null") { // top-level sync barrier
             addToMap(dataForTimelineView, n.name, n)
         } else {
@@ -263,14 +243,19 @@ function assignParentIdsToWhileLoopChildren(nodes, nodeNameToId, nextId) {
          .forEach(function(node) {
             node.condOps.forEach(function(n) {
                 n.parentId = node.id
+                n.target = node.target
             })
 
             node.bodyOps.forEach(function(n) {
                 n.parentId = node.id
+                n.target = node.target
             })
 
             node.partitions.forEach(function(n) {
                 n.parentId = node.id
+                n.target = node.target
+                console.log(node.target)
+                console.log(n)
             })
 
             nextId = assignParentIdsToWhileLoopChildren(node.condOps, nodeNameToId, nextId)

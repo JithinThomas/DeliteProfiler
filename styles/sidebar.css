@@ -58,7 +58,7 @@ background: #003040;
 	transition: all 0.15s;
 }
 
-#kernelInfoTable  {
+.sidebarTable  {
 	color: white;
 	background: white;
 	text-decoration: none;
@@ -67,18 +67,19 @@ background: #003040;
 	display: block;
 	width: 200px;
 	border: 1px solid black;
-	text-align:center;
+	text-align: center;
 	border-collapse: collapse;
 }
 
-#kernelInfoTable th {
+.sidebarTable th {
 	border-width: 1px;
 	border-style: solid;
 	border-color: #666666;
 	background-color: #dedede;
 	color: black;
 }
-#kernelInfoTable td {
+
+.sidebarTable td {
 	border-width: 1px;
 	border-style: solid;
 	border-color: #666666;

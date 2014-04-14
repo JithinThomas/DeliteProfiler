@@ -4,6 +4,9 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     var timelineData = getDataForTimelineView(rawProfileData, dependencyData, config)
     updateTimeTakenByLoopKernels(dependencyData)
 
+    var tmp = getDataForTimelineView_mod(rawProfileData, dependencyData, config)
+    console.log(tmp)
+
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }
 
@@ -84,17 +87,30 @@ function getDataForTimelineView(rawProfileData, dependencyData, config) {
     return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
 }
 
+function getMaxNodeLevel(nodes) {
+    return nodes.map(function(n) {return n.level})
+                .reduce(function(a,b) {if (a >= b) {return a} else {return b}})
+}
+
 function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
     // TODO: Create a hierarchical model for the timeline data
     //       dataForTimelineView would be a map of NodeName -> [Timing data]
     //       Each node can have children. And when the user goes into lower levels,
     //       the node may or may not retain its opacity depending on whether it has children.
 
+
+    // (i) Determine max number of levels in the node structure
+    // (ii) Create the dataForTimelineView map accordingly
+    // (iii) Populate dataForTimelineView - each node would have its entry and corresponding list of timing data
+    // (iv) Pass this data to the timeline view
+    // (v) The timeline view would flatten the data: adding the lower levels to the childNodes attribute of the nodes
     var nodes = dependencyData.nodes
     var nodeNameToId = dependencyData.nodeNameToId
     var dataForTimelineView = {}
-    var levelToNodes = {}
     var syncNodes = []
+
+    var maxNodeLevel = getMaxNodeLevel(nodes)
+    for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
 
     for (var i in rawProfileData.kernels) {
         var o = {}
@@ -105,6 +121,7 @@ function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
         o["duration"] = rawProfileData.duration[i]
         o["end"] = o["start"] + o["duration"]
         o["node"] = nodes[o.id]
+        o["level"] = getTNodeLevel(o)
         o["displayText"] = getDisplayTextForTimelineNode(o.name)
         o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.
         o["syncNodes"] = []
@@ -114,7 +131,7 @@ function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
         if (!(config.syncNodeRegex.test(o.name))) {
             nodes[o.id].time += o.duration
             o.type = "execution"
-            addToMap(levelToNodes, o.node.level, o)
+            addToMap(dataForTimelineView[o.level], o.name, o)
         } else {
             o.type = "sync"
             syncNodes.push(o)
@@ -122,9 +139,38 @@ function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
     }
 
 
-    assignSyncNodesToParents(dataForTimelineView, syncNodes)
+    assignSyncNodesToParents_mod(dataForTimelineView, dependencyData, syncNodes)
 
     return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
+}
+
+function getTNodeLevel(n) {
+    if (n.node) {
+        return n.node.level
+    }
+
+    return 0
+}
+
+function updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData, laneToThreadId) {
+    for (var i = maxNodeLevel, i > 0; i--) {
+        var childNodes = dataForTimelineView[i]
+        for (cname in childNodes) {
+            var childRuns = childNodes[cname]
+            childRuns.forEach(function(n) {
+                var parentId = n.node.parentId
+                var parentName = dependencyData.nodes[parentId].name + "_" + laneToThreadId(n.lane)
+                var parentRuns = dataForTimelineView[i - 1][parentName]
+                for (var j in parentRuns) {
+                    var p = parentRuns[j]
+                    if ((p.start <= n.start) && (n.end <= p.end)) {
+                        p.childNodes.push(n)
+                        break;
+                    }
+                }
+            })
+        }
+    }
 }
 
 function updateTimeTakenByLoopKernels(dependencyData) {
@@ -207,11 +253,12 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
                     parentId        : -1,  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
                     time            : 0,
                     sourceContext   : {},
+                    runs            : [], // timing data for each time this node was executed in the app
                  }
 
         updateSourceContext(n, node.sourceContext)
         res.push(n)
-        res = res.concat(condOpsData).concat(bodyOpsData).concat(partitionNodes)
+        res = res.concat(condOpsData).concat(bodyOpsData).concat(partitionNodes).concat(thenOpsData).concat(elseOpsData)
 
         return res
     }
@@ -269,6 +316,28 @@ function assignSyncNodesToParents(dataForTimelineView, syncNodes) {
             addToMap(dataForTimelineView, n.name, n)
         } else {
             var parent = dataForTimelineView[parentName].filter(function(p) {
+                return (p.start <= n.start) && (n.end <= p.end)
+            })[0]   // There should be just one element in the filtered list anyways
+
+            parent.syncNodes.push(n)
+        }
+    })
+}
+
+function assignSyncNodesToParents_mod(dataForTimelineView, dependencyData, syncNodes) {
+    syncNodes.forEach(function(n) {
+        var m = n.name.match(config.syncNodeRegex)
+        var parentName = m[2]
+
+        n.dep_kernel = m[3]
+        n.dep_thread = "T" + m[4]
+
+        if (parentName == "null") { // top-level sync barrier
+            addToMap(dataForTimelineView[0], n.name, n)
+        } else {
+            var parentId = dependencyData.nodeNameToId[parentName]
+            var parentLevel = dependencyData.nodes[parentId].level
+            var parent = dataForTimelineView[parentLevel][parentName].filter(function(p) {
                 return (p.start <= n.start) && (n.end <= p.end)
             })[0]   // There should be just one element in the filtered list anyways
 

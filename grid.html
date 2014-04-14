@@ -3,61 +3,10 @@
 		<title>Layout test</title>
 	</head>
 	<body>
-		<style type="text/css">
-			div {
-				/*border: 1px solid #DFDFDF;*/
-			}
-
-			#container {
-				position: absolute;
-				width: 100%;
-				height: 100%;
-			}
-
-			#sidebar {
-				position: fixed;
-			  	background: white;
-			  	width: 200px;
-			  	height: 100%;
-			}
-
-			#right {
-				position: absolute;
-				left: 203px;
-				width: 1000px;
-				height: 100%;
-			}
-
-			#code {
-				position: absolute;
-			  	/*background: white;*/
-			  	width: 50%;
-			  	height: 70%;
-			}
-
-			#dfg {
-				position: absolute;
-			  	/*background: white;*/
-			  	width: 50%;
-			  	height: 70%;
-			  	left: 50%;
-			}
-
-			#timeline {
-				position: absolute;
-			  	background: #DDD;
-			  	width: 100%;
-			  	height: 30%;
-			  	top: 70%;
-			}
-    	</style>
+		<link rel="stylesheet" type="text/css" href="styles/grid.css" />
     	<link rel="stylesheet" type="text/css" href="styles/sidebar.css" />
-    	<link rel="stylesheet" type="text/css" href="styles/jquery.gridster.css">
-	  	<link rel="stylesheet" type="text/css" href="styles/demo.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/editor.css">
-	  	<link rel="stylesheet" type="text/css" href="styles/style.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/dataflow.css">
-	  	<link rel="stylesheet" type="text/css" href="styles/github.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/timeline.css">
 
 	  	<div id="container">
@@ -208,7 +157,7 @@
         <!-- temporary dependencies -->
         <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
         <!--script type="text/javascript" src="../profileDataTest/profileData.js"></script-->
-        <script type="text/javascript" src="profileData-new.js"></script>
+        <script type="text/javascript" src="profileData.js"></script>
 
 	    <script type="text/javascript">
 	    	var viewState = {}
@@ -226,7 +175,8 @@
 	    	config.syncNodeRegex = /__sync-ExecutionThread-(\d+)-(.*)-(.*)-(\d+)$/
 
       		var editor = createEditor("code")
-      		var profData = getProfileData(deg.DEG.ops, profileData(), config)
+      		//var profData = getProfileData(deg.DEG.ops, profileData(), config)
+      		var profData = getProfileData(deg.DEG.ops, profile.Profile.PerfProfile, config)
       		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
 
 	      	addAppSourceFileHandler("files1", editor)

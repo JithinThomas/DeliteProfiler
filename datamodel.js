@@ -4,9 +4,6 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     var timelineData = getDataForTimelineView(rawProfileData, dependencyData, config)
     updateTimeTakenByLoopKernels(dependencyData)
 
-    var tmp = getDataForTimelineView_mod(rawProfileData, dependencyData, config)
-    console.log(tmp)
-
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }
 
@@ -48,62 +45,12 @@ function getDependencyData(degFileNodes, numThreads) {
     return {"nodes": nodes, "nodeNameToId": nodeNameToId}
 }
 
-function getDataForTimelineView(rawProfileData, dependencyData, config) {
-    // TODO: Create a hierarchical model for the timeline data
-    //       dataForTimelineView would be a map of NodeName -> [Timing data]
-    //       Each node can have children. And when the user goes into lower levels,
-    //       the node may or may not retain its opacity depending on whether it has children.
-    var nodes = dependencyData.nodes
-    var nodeNameToId = dependencyData.nodeNameToId
-    var dataForTimelineView = {}
-    var syncNodes = []
-
-    for (var i in rawProfileData.kernels) {
-        var o = {}
-        o["name"] = rawProfileData.kernels[i]
-        o["id"] = nodeNameToId[o.name]
-        o["lane"] = rawProfileData.location[i]
-        o["start"] = rawProfileData.start[i]
-        o["duration"] = rawProfileData.duration[i]
-        o["end"] = o["start"] + o["duration"]
-        o["node"] = nodes[o.id]
-        o["displayText"] = getDisplayTextForTimelineNode(o.name)
-        o["syncNodes"] = []
-        o["dep_thread"] = "" // important for sync nodes - specifies the thread the sync was expecting a result from
-        o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
- 
-        if (!(config.syncNodeRegex.test(o.name))) {
-            nodes[o.id].time += o.duration
-            o.type = "execution"
-            addToMap(dataForTimelineView, o.name, o)
-        } else {
-            o.type = "sync"
-            syncNodes.push(o)
-        }
-    }
-
-    assignSyncNodesToParents(dataForTimelineView, syncNodes)
-
-    return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
-}
-
 function getMaxNodeLevel(nodes) {
     return nodes.map(function(n) {return n.level})
                 .reduce(function(a,b) {if (a >= b) {return a} else {return b}})
 }
 
-function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
-    // TODO: Create a hierarchical model for the timeline data
-    //       dataForTimelineView would be a map of NodeName -> [Timing data]
-    //       Each node can have children. And when the user goes into lower levels,
-    //       the node may or may not retain its opacity depending on whether it has children.
-
-
-    // (i) Determine max number of levels in the node structure
-    // (ii) Create the dataForTimelineView map accordingly
-    // (iii) Populate dataForTimelineView - each node would have its entry and corresponding list of timing data
-    // (iv) Pass this data to the timeline view
-    // (v) The timeline view would flatten the data: adding the lower levels to the childNodes attribute of the nodes
+function getDataForTimelineView(rawProfileData, dependencyData, config) {
     var nodes = dependencyData.nodes
     var nodeNameToId = dependencyData.nodeNameToId
     var dataForTimelineView = {}
@@ -139,7 +86,8 @@ function getDataForTimelineView_mod(rawProfileData, dependencyData, config) {
     }
 
 
-    assignSyncNodesToParents_mod(dataForTimelineView, dependencyData, syncNodes)
+    assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes)
+    updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData)
 
     return {"timing": dataForTimelineView, "lanes": rawProfileData.res}
 }
@@ -152,14 +100,24 @@ function getTNodeLevel(n) {
     return 0
 }
 
-function updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData, laneToThreadId) {
-    for (var i = maxNodeLevel, i > 0; i--) {
+function updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData) {
+    function getParentName(n) {
+        var parentId = n.node.parentId
+        var parent = dependencyData.nodes[parentId]
+        var pType = parent.type
+        if ((pType == "WhileLoop") || (pType == "Conditional") || (pType == "MultiLoop")) {
+            return parent.name + "_" + n.lane
+        }
+
+        return parent.name
+    }
+
+    for (var i = maxNodeLevel; i > 0; i--) {
         var childNodes = dataForTimelineView[i]
         for (cname in childNodes) {
             var childRuns = childNodes[cname]
             childRuns.forEach(function(n) {
-                var parentId = n.node.parentId
-                var parentName = dependencyData.nodes[parentId].name + "_" + laneToThreadId(n.lane)
+                var parentName = getParentName(n)
                 var parentRuns = dataForTimelineView[i - 1][parentName]
                 for (var j in parentRuns) {
                     var p = parentRuns[j]
@@ -305,26 +263,7 @@ function getDisplayTextForTimelineNode(name) {
     return name
 }
 
-function assignSyncNodesToParents(dataForTimelineView, syncNodes) {
-    syncNodes.forEach(function(n) {
-        var m = n.name.match(config.syncNodeRegex)
-        var parentName = m[2]
-        n.dep_kernel = m[3]
-        n.dep_thread = "T" + m[4]
-
-        if (parentName == "null") { // top-level sync barrier
-            addToMap(dataForTimelineView, n.name, n)
-        } else {
-            var parent = dataForTimelineView[parentName].filter(function(p) {
-                return (p.start <= n.start) && (n.end <= p.end)
-            })[0]   // There should be just one element in the filtered list anyways
-
-            parent.syncNodes.push(n)
-        }
-    })
-}
-
-function assignSyncNodesToParents_mod(dataForTimelineView, dependencyData, syncNodes) {
+function assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes) {
     syncNodes.forEach(function(n) {
         var m = n.name.match(config.syncNodeRegex)
         var parentName = m[2]

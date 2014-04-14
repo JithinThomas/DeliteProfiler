@@ -7,8 +7,11 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	function getDataInTimelineFormat(data) {
 		var res = []
-		for (key in data) {
-			res = res.concat(data[key])
+		for (level in data) {
+			var runs = data[level]
+			for (node in runs) {
+				res = res.concat(runs[node])
+			}
 		}
 
 		return res
@@ -92,8 +95,9 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	var parentDiv = $('#timeline')
 
+
 	var m = [20, 15, 15, 120], //top right bottom left
-		chartWidth = 2200,	// TODO: Set the width of the timeline view dynamically
+		chartWidth = parentDiv.width() * 2.5,
 		chartHeight = parentDiv.height();
 
 	//scales
@@ -167,7 +171,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	//timeline labels
 	var minDurationReqForDisplayingLabel = 5000
-	//var minDurationReqForDisplayingLabel = 0
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
 	timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)

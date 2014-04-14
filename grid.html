@@ -230,6 +230,8 @@
       		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
 
 	      	addAppSourceFileHandler("files1", editor)
+	      	addDegFileHandler("files2")
+	      	addProfileDataFileHandler("files3")
 	      	var timelineController = createTimeline("#timeline", profData, config)
 
 	      	$("#colorSchemeForGraph").change(function() {

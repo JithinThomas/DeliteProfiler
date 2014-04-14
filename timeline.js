@@ -276,10 +276,12 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	function hideNodes(selector) {
 		$(selector).hide()
+		//$(selector).css("fill-opacity", "0")
 	}
 
 	function showNodes(selector) {
 		$(selector).show()
+		//$(selector).css("fill-opacity", "1")
 	}
 
 	// NOTE: Performs horizontal zoom only

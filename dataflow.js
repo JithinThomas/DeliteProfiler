@@ -158,7 +158,10 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 								    .domain([0, maxTimeTakenByAKernel])
 								    .range(["white", "red"]);
 
-
+	var maxMemUsageByAKernel = nodesToDisplay.map(function(n) {return n.memUsage}).sort(function(a,b) {return b - a})[1]
+	var colorNodeBasedOnMemUsage = d3.scale.linear()
+							    	.domain([0, maxMemUsageByAKernel])
+								    .range(["white", "red"]);						  
 
 	var constraints = []
 	function generateConstraints() {
@@ -259,6 +262,16 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		config.populateKernelInfoTable(node)
 
 		// Highlight neighboring nodes
+		/*
+		var arr = getNeighbors(node)
+		arr.push(node.id)
+		highlightNodes(arr)
+		*/
+
+		highlightNeighbors(node)
+	}
+
+	function highlightNeighbors(node) {
 		var arr = getNeighbors(node)
 		arr.push(node.id)
 		highlightNodes(arr)
@@ -289,6 +302,7 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		this.highlightNode = highlightNode;
 		this.unhighlightNode = unhighlightNode;
 		this.changeColoringScheme = changeColoringScheme;
+		this.markNeighbors = markNeighbors
 
 		function highlightNode(nodeId) {
 			var n = $(".dataflow-kernel")[toDisplayIndex(nodeId)]
@@ -300,6 +314,11 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 			n.setAttribute("stroke-width", "0px")
 		}
 
+		function markNeighbors(nodeId) {
+			var node = nodes[nodeId]
+			highlightNeighbors(node)
+		}
+
 		function changeColoringScheme(scheme) {
 			if (scheme == "datadeps") {
 				graphElements.selectAll(".dataflow-kernel")
@@ -307,6 +326,9 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 			} else if (scheme == "time") {
 				graphElements.selectAll(".dataflow-kernel")
 			    			 .attr("fill", function(d) {return colorNodeBasedOnTimeTaken(d.percentage_time)})
+			} else if (scheme == "memUsage") {
+				graphElements.selectAll(".dataflow-kernel")
+			    			 .attr("fill", function(d) {return colorNodeBasedOnMemUsage(d.memUsage)})
 			}
 		}
 	}

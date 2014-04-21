@@ -224,15 +224,41 @@ function createTimeline(timelineDivClass, profileData, config) {
 		} else if (d.type == "execution") {
 			var n = profileData.dependencyData.nodes[d.id]
 			config.populateKernelInfoTable(n)
-		}
 
-		config.markGraphNode(d.id)
+			var id = d.id
+			if (n.type == "InternalNode") {
+				config.markGraphNode(n.parentId)
+				config.markNeighborsOnGraph(n.parentId)
+				n = profileData.dependencyData.nodes[n.parentId]
+			} else {
+				config.markGraphNode(d.id)
+				config.markNeighborsOnGraph(d.id)
+			}
+
+			var sc = n.sourceContext
+			if (sc.file == viewState.appSourceFileName) {
+				config.highlightLineInEditor(sc.line, true)
+			} else {
+				console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
+				config.highlightLineInEditor(sc.line, false) // HACK
+			}
+		}
 	}
 
+	/*
 	function getLevelAttr(d) {
 		var node = d.node
 		if (node && ((node.type == "WhileLoop") || (node.level > 0) || (node.type == "InternalNode"))) {
 			return "level-" + node.level
+		}
+
+		return ""
+	}
+	*/
+
+	function getLevelAttr(d) {
+		if ((d.childNodes.length > 0) || (d.syncNodes.length > 0) || (d.parentId >= 0)) {
+			return "level-" + d.level
 		}
 
 		return ""

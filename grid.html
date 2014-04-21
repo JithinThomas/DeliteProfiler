@@ -54,6 +54,7 @@
 									<select id="colorSchemeForGraph">
 										<option value="datadeps">Data Deps</option>
 										<option value="time">Exec Time</option>
+										<option value="memUsage">Mem Usage</option>
 									</select>
 								</a>
 							</li>
@@ -101,6 +102,14 @@
 									</tr>
 									<tr>
 										<td>Time (%)</td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td>Exec/Sync Time (%)</td>
+										<td></td> 
+									</tr>
+									<tr>
+										<td>Mem Usage (B)</td>
 										<td></td> 
 									</tr>
 								</table>
@@ -155,8 +164,10 @@
         <script type="text/javascript" src="timeline.js"></script>
 
         <!-- temporary dependencies -->
+        <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
+        <script type="text/javascript" src="profileData.js"></script-->
+
         <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <!--script type="text/javascript" src="../profileDataTest/profileData.js"></script-->
         <script type="text/javascript" src="profileData.js"></script>
 
 	    <script type="text/javascript">
@@ -169,14 +180,16 @@
 
 	    	var config = {}
 	    	config.markGraphNode = markGraphNode
+	    	config.markNeighborsOnGraph = markNeighborsOnGraph
 	    	config.highlightLineInEditor = highlightLineInEditor
 	    	config.populateKernelInfoTable = populateKernelInfoTable
 	    	config.populateSyncNodeInfoTable = populateSyncNodeInfoTable
 	    	config.syncNodeRegex = /__sync-ExecutionThread-(\d+)-(.*)-(.*)-(\d+)$/
+	    	config.re_partition = /^(.*)_(\d+)$/
+			config.re_header = /^(.*)_h$/
 
       		var editor = createEditor("code")
-      		//var profData = getProfileData(deg.DEG.ops, profileData(), config)
-      		var profData = getProfileData(deg.DEG.ops, profile.Profile.PerfProfile, config)
+      		var profData = getProfileData(deg.DEG.ops, profile.Profile, config)
       		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
 
 	      	addAppSourceFileHandler("files1", editor)
@@ -246,6 +259,10 @@
 	    		viewState.highlightedGraphNode = kernelId
 	    	}
 
+	    	function markNeighborsOnGraph(nodeId) {
+	    		graphController.markNeighbors(nodeId)
+	    	}
+
 	    	function highlightLineInEditor(line, isValidLine) {
     			unhighlightLine(viewState.highlightedLine)
     			if (isValidLine) {
@@ -254,10 +271,10 @@
 	    	}
 
 	    	function populateKernelInfoTable(node) {
-	    		var properties = ["Name", "Type", "Target", "Time (%)"]
-	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %"]
+	    		//var properties = ["Name", "Type", "Target", "Time (%)", "Mem Usage"]
+	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.syncTime.pct.toFixed(0) + "/" + node.execTime.pct.toFixed(0) + " %", node.memUsage + " B"]
 	    		var table = $("#kernelInfoTable")[0]
-	    		properties.forEach(function(p, i) {
+	    		values.forEach(function(v, i) {
 	    			var row = table.rows[i + 1]
 	    			//row.cells[0].innerHTML = p
 	    			row.cells[1].innerHTML = values[i]

@@ -235,8 +235,8 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		            d.arrowStart = { x: d.target.x, y: d.target.y };
 		            return;
 		        }
-		        vpsc.makeEdgeBetween(d, d.source.innerBounds, d.target.innerBounds, 5);
-		        if (isIE()) this.parentNode.insertBefore(this, this);})
+		        
+		        vpsc.makeEdgeBetween(d, d.source.innerBounds, d.target.innerBounds, 5);})
 	        .attr("x1", function (d) { return d.sourceIntersection.x; })
 	        .attr("y1", function (d) { return d.sourceIntersection.y; })
 	        .attr("x2", function (d) { return d.arrowStart.x; })
@@ -246,28 +246,10 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
 	});
 
-	function isIE() { 
-		return ((navigator.appName == 'Microsoft Internet Explorer') || ((navigator.appName == 'Netscape') && (new RegExp("Trident/.*rv:([0-9]{1,}[\.0-9]{0,})").exec(navigator.userAgent) != null))); 
-	}
-
 	function nodeClickHandler(node) {
 		var sc = node.sourceContext
-		if (sc.file == viewState.appSourceFileName) {
-			config.highlightLineInEditor(sc.line, true)
-		} else {
-			console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
-			config.highlightLineInEditor(sc.line, false) // HACK
-		}
-
+		config.highlightLineInEditor(sc.file, sc.line)
 		config.populateKernelInfoTable(node)
-
-		// Highlight neighboring nodes
-		/*
-		var arr = getNeighbors(node)
-		arr.push(node.id)
-		highlightNodes(arr)
-		*/
-
 		highlightNeighbors(node)
 	}
 

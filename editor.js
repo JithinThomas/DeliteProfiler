@@ -21,15 +21,5 @@ function highlightLine(line) {
 }
 
 function unhighlightLine(r) {
-    //var r = new aceRange(line,0,line,10000)
     editor.removeSelectionMarker(r)
-    //editor.scrollToLine(line,true)
 }
-
-/*
-function unhighlightLine(line) {
-    var r = new aceRange(line,0,line,10000)
-    editor.removeSelectionMarker(r)
-    editor.scrollToLine(line,true)
-}
-*/

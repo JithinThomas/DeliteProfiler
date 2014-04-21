@@ -1,27 +1,32 @@
 
-// ===========================
-//  Read app source code file
-// ===========================
+// ==============================
+//  Read app source code file(s)
+// ==============================
 
 var editor = null
+var fileNameToFile = {}
+var sourceFileReader = new FileReader()
+sourceFileReader.onload = (function() {
+  return function(e) {
+      editor.setValue(e.target.result, -1)
+  };
+})();
 
-function handleFileSelect(evt) {
-  var appSourceFile = evt.target.files[0]; // FileList object
-	var reader = new FileReader();
-
-	reader.onload = (function() {
-  	return function(e) {
-    		editor.setValue(e.target.result)
-  	};
-	})();
-
-	reader.readAsText(appSourceFile);
-  viewState.appSourceFileName = appSourceFile.name
+function getFiles(evt) {
+  var files = evt.target.files
+  var numFiles = files.length
+  for (var i = 0; i < numFiles; i++) {
+    var file = files[i]
+    fileNameToFile[file.name] = file
+  }
 }
 
-function addAppSourceFileHandler(inputButtonId, editorDiv) {
-	editor = editorDiv
-	document.getElementById(inputButtonId).addEventListener('change', handleFileSelect, false);
+function addAppSourceFileHandler(inputButtonId) {
+  document.getElementById(inputButtonId).addEventListener('change', getFiles, false);
+}
+
+function readFile(sourceFile) {
+  sourceFileReader.readAsText(fileNameToFile[sourceFile])
 }
 
 // ===========================

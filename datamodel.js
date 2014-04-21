@@ -2,10 +2,13 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     var perfProfile = rawProfileData.PerfProfile
     var numThreads = getNumberOfThreads(perfProfile)
     var dependencyData = getDependencyData(degFileNodes, numThreads)
+    var timelineData = {}
+    ///*
     var timelineData = getDataForTimelineView(perfProfile, dependencyData, config)
     updateTimeTakenByPartitionedKernels(dependencyData)
     updateSyncAndExecTimesOfKernels(dependencyData, timelineData.timing)
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData)
+    //*/
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }

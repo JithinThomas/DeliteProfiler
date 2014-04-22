@@ -39,12 +39,13 @@ function readDegFile(evt) {
   var reader = new FileReader()
   reader.onload = (function() {
     return function(e) {
-      console.log(e.target.result)
       degOps = JSON.parse(e.target.result).DEG.ops
-    }
-  })()
+    };
+  })();
 
-  reader.readAsText(evt.target.files[0])
+  var degFile = evt.target.files[0]
+  reader.readAsText(degFile)
+  viewState.degFile = degFile.name
 }
 
 function addDegFileHandler(inputButtonId) {
@@ -60,12 +61,12 @@ function readProfileDataFile(evt) {
   var reader = new FileReader()
   reader.onload = (function() {
     return function(e) {
-      console.log(e.target.result)
       profileData = JSON.parse(e.target.result)
-    }
-  })()
+    };
+  })();
 
   reader.readAsText(evt.target.files[0])
+  viewState.profileDataFile = evt.target.files[0].name
 }
 
 function addProfileDataFileHandler(inputButtonId) {

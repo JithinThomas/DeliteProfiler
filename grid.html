@@ -17,19 +17,27 @@
 						<ul>
 							<li>
 								<a href="#">
-									<input type="file" id="files1" name="files[]"  multiple webkitdirectory="" directory=""/>
+									<input type="button" value="Choose src dir        " onclick="document.getElementById('srcDirInput').click();" />
+									<input type="file" id="srcDirInput" name="files[]"  multiple webkitdirectory="" directory="" style="display: none;" />
 								</a>
 							</li>
 							<li>
 								<a href="#">
-									<input type="file" id="files2" name="files[]" />
+									<input type="button" value="Choose DEG file      " onclick="document.getElementById('degFileInput').click();" />
+									<input type="file" id="degFileInput" name="files[]" style="display: none;" />
 								</a>
 							</li>
 							<li>
 								<a href="#">
-									<input type="file" id="files3" name="files[]" />
+									<input type="button" value="Choose profile data" onclick="document.getElementById('profDataInput').click();" />
+									<input type="file" id="profDataInput" name="files[]" style="display: none;" />
 								</a>
-							</li>	
+							</li>
+							<li>
+								<a href="#">
+									<button type="button" id="startButton"/>View</button>
+								</a>
+							</li>
 						</ul>
 					</li>
 					<li class="active">
@@ -152,8 +160,8 @@
         <script type="text/javascript" src="timeline.js"></script>
 
         <!-- temporary dependencies -->
-        <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <script type="text/javascript" src="profileData.js"></script>
+        <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
+        <script type="text/javascript" src="profileData.js"></script-->
 
         <!--script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
         <script type="text/javascript" src="David_app/profileData.js"></script-->
@@ -162,6 +170,8 @@
 	    	var viewState = {}
 	    	viewState.highlightedGraphNode = -1
 	    	viewState.appSourceFileName = ""
+	    	viewState.degFile = ""
+	    	viewState.profileDataFile = ""
 	    	viewState.highlightedLine = new aceRange(0,0,0,0)
 	    	viewState.graphViewMode = $("#colorSchemeForGraph").val()
 	    	viewState.selectedLevel = -1
@@ -176,16 +186,14 @@
 	    	config.re_partition = /^(.*)_(\d+)$/
 			config.re_header = /^(.*)_h$/
 
-      		var editor = createEditor("code")
-      		var profData = getProfileData(deg.DEG.ops, profile.Profile, config)
-      		var graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-      		//var graphController = {}
+	      	addAppSourceFileHandler("srcDirInput", editor)
+	      	addDegFileHandler("degFileInput")
+	      	addProfileDataFileHandler("profDataInput")
 
-	      	addAppSourceFileHandler("files1", editor)
-	      	addDegFileHandler("files2")
-	      	addProfileDataFileHandler("files3")
-	      	var timelineController = createTimeline("#timeline", profData, config)
-	      	//var timelineController = {}
+	      	var editor = {}
+	      	var profData = {}
+	      	var graphController = {}
+	      	var timelineController = {}
 
 	      	$("#colorSchemeForGraph").change(function() {
 	      		var colorScheme = $(this).val()
@@ -200,7 +208,9 @@
 			})
 
 	      	$("#timelineLevelFilter").change(filterNodesOnTimeline)
+	      	$('#startButton').click(startDebugSession)
 
+	      	/*
 			$(document).ready(function () {
 				/*
 				$('#accordian > ul > li').click(function() {
@@ -217,10 +227,20 @@
 				        return false
 				    }
 			  	})
-				*/
-
-			  	filterNodesOnTimeline()
 			})
+			*/
+			
+			function startDebugSession() {
+				if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
+					editor = createEditor("code")
+		      		profData = getProfileData(degOps, profileData.Profile, config)
+		      		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+			      	timelineController = createTimeline("#timeline", profData, config)
+			      	filterNodesOnTimeline()
+			    } else {
+			    	alert("Please upload the DEG file and the profile data (profData.js) and retry")
+			    }
+			}
 
 			function filterNodesOnTimeline() {
 				var selectedLevel = parseInt($("#timelineLevelFilter").val())
@@ -254,7 +274,6 @@
 	    	}
 
 	    	function highlightLineInEditor(file, line) {
-	    		console.log("f: " + file + " l: " + line + " pf: " + viewState.appSourceFileName + " pl: " + viewState.highlightedLine)
 	    		unhighlightLine(viewState.highlightedLine)
 	    		if (file in fileNameToFile) {
 	    			if (file != viewState.appSourceFileName) readFile(file)
@@ -266,19 +285,16 @@
 	    	}
 
 	    	function populateKernelInfoTable(node) {
-	    		//var properties = ["Name", "Type", "Target", "Time (%)", "Mem Usage"]
 	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.syncTime.pct.toFixed(0) + "/" + node.execTime.pct.toFixed(0) + " %", node.memUsage + " B"]
 	    		var table = $("#kernelInfoTable")[0]
 	    		values.forEach(function(v, i) {
 	    			var row = table.rows[i + 1]
-	    			//row.cells[0].innerHTML = p
 	    			row.cells[1].innerHTML = values[i]
 	    		})
 	    	}
 
 	    	function populateSyncNodeInfoTable(node) {
 	    		var properties = ["Dep. Thread", "Dep. Kernel", "Time (%)"]
-	    		//var values = [node.dep_thread, node.dep_kernel, node.percentage_time.toFixed(2) + " %"]
 	    		var values = [node.dep_thread, node.dep_kernel, "NA"]
 	    		var table = $("#syncNodeInfoTable")[0]
 	    		properties.forEach(function(p, i) {

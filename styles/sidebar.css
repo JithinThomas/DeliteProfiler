@@ -102,3 +102,13 @@ background: #003040;
 	display: block;
 }
 
+#startButton {
+	width: 120;
+	height: 20;
+	-moz-border-radius: 8;
+	-webkit-border-radius: 8;
+	border: 2px solid red;
+	margin: 0 0 0 22;
+	background: white
+}
+

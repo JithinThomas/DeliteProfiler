@@ -163,8 +163,11 @@
         <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
         <script type="text/javascript" src="profileData.js"></script-->
 
-        <!--script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
-        <script type="text/javascript" src="David_app/profileData.js"></script-->
+        <!--script type="text/javascript" src="testDeg.deg"></script>
+        <script type="text/javascript" src="testProfileData.js"></script-->
+
+        <script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
+        <script type="text/javascript" src="David_app/profileData.js"></script>
 
 	    <script type="text/javascript">
 	    	var viewState = {}
@@ -230,16 +233,34 @@
 			})
 			*/
 			
+			console.time("Start debug session")
+			startDebugSession()
+			console.timeEnd("Start debug session")
+
 			function startDebugSession() {
-				if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
+				degOps = deg.DEG.ops
+				//if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
 					editor = createEditor("code")
+					console.time("Compute profile data")
 		      		profData = getProfileData(degOps, profileData.Profile, config)
+		      		console.timeEnd("Compute profile data")
+
+		      		console.time("Initialize graph")
 		      		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+		      		console.timeEnd("Initialize graph")
+
+		      		console.time("Initialize timeline view")
 			      	timelineController = createTimeline("#timeline", profData, config)
+			      	console.timeEnd("Initialize timeline view")
+
+			      	console.time("Filter timeline nodes")
 			      	filterNodesOnTimeline()
+			      	console.timeEnd("Filter timeline nodes")
+			    /*
 			    } else {
 			    	alert("Please upload the DEG file and the profile data (profData.js) and retry")
 			    }
+			    //*/
 			}
 
 			function filterNodesOnTimeline() {
@@ -285,7 +306,7 @@
 	    	}
 
 	    	function populateKernelInfoTable(node) {
-	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.syncTime.pct.toFixed(0) + "/" + node.execTime.pct.toFixed(0) + " %", node.memUsage + " B"]
+	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.execTime.pct.toFixed(0) + "/" + node.syncTime.pct.toFixed(0) + " %", node.memUsage + " B"]
 	    		var table = $("#kernelInfoTable")[0]
 	    		values.forEach(function(v, i) {
 	    			var row = table.rows[i + 1]

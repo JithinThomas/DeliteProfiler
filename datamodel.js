@@ -1,14 +1,20 @@
 function getProfileData(degFileNodes, rawProfileData, config) {
     var perfProfile = rawProfileData.PerfProfile
     var numThreads = getNumberOfThreads(perfProfile)
+
+    console.time("Compute dep. data")
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    var timelineData = {}
-    ///*
+    console.timeEnd("Compute dep. data")
+
+    console.time("Compute timeline data")
     var timelineData = getDataForTimelineView(perfProfile, dependencyData, config)
+    console.timeEnd("Compute timeline data")
+
+    console.time("Extra updates")
     updateTimeTakenByPartitionedKernels(dependencyData)
-    updateSyncAndExecTimesOfKernels(dependencyData, timelineData.timing)
+    updateSyncAndExecTimesOfKernels(timelineData.timing, dependencyData.maxNodeLevel)
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData)
-    //*/
+    console.timeEnd("Extra updates")
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }
@@ -72,42 +78,55 @@ function getDataForTimelineView(perfProfile, dependencyData, config) {
     var nodeNameToId = dependencyData.nodeNameToId
     var dataForTimelineView = {}
     var syncNodes = []
+    var totalAppTime = 0
 
-    //var maxNodeLevel = getMaxNodeLevel(nodes)
     var maxNodeLevel = dependencyData.maxNodeLevel
     for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
+
+    function isValidKernel(n) {
+        return (config.syncNodeRegex.test(n) || (n in nodeNameToId))
+    }
 
     for (var i in perfProfile.kernels) {
         var o = {}
         o["name"] = perfProfile.kernels[i]
-        o["id"] = nodeNameToId[o.name]
-        o["lane"] = perfProfile.location[i]
-        o["start"] = perfProfile.start[i]
-        o["duration"] = perfProfile.duration[i]
-        o["end"] = o["start"] + o["duration"]
-        o["node"] = nodes[o.id]
-        o["level"] = getTNodeLevel(o)
-        o["displayText"] = getDisplayTextForTimelineNode(o.name)
-        o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.
-        o["syncNodes"] = []
-        o["parentId"] = -1
-        o["dep_thread"] = "" // important for sync nodes - specifies the thread the sync was expecting a result from
-        o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
- 
-        if (!(config.syncNodeRegex.test(o.name))) {
-            nodes[o.id].time += o.duration
-            o.type = "execution"
-            addToMap(dataForTimelineView[o.level], o.name, o)
-        } else {
-            o.type = "sync"
-            syncNodes.push(o)
+        if (isValidKernel(o.name)) {
+            o["id"] = nodeNameToId[o.name]
+            o["lane"] = perfProfile.location[i]
+            o["start"] = perfProfile.start[i]
+            o["duration"] = perfProfile.duration[i]
+            o["end"] = o["start"] + o["duration"]
+            o["node"] = nodes[o.id]
+            o["level"] = getTNodeLevel(o)
+            o["displayText"] = getDisplayTextForTimelineNode(o.name)
+            o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.
+            o["syncNodes"] = []
+            o["parentId"] = -1
+            o["dep_thread"] = "" // important for sync nodes - specifies the thread the sync was expecting a result from
+            o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
+            o["execTime"] = {"abs": NaN, "pct": NaN}
+            o["syncTime"] = {"abs": NaN, "pct": NaN}
+     
+            if (!(config.syncNodeRegex.test(o.name))) {
+                //console.log(o)
+                nodes[o.id].time += o.duration
+                o.type = "execution"
+                addToMap(dataForTimelineView[o.level], o.name, o)
+            } else {
+                o.type = "sync"
+                syncNodes.push(o)
+            }
+
+            if (o.name == "all") {
+                totalAppTime = o.duration
+            }
         }
     }
 
     assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes)
     updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData)
 
-    return {"timing": dataForTimelineView, "lanes": perfProfile.res}
+    return {"timing": dataForTimelineView, "lanes": perfProfile.res, "totalAppTime": totalAppTime}
 }
 
 function getMaxNodeLevel(nodes) {
@@ -125,7 +144,13 @@ function getTNodeLevel(n) {
 
 function updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData) {
     function getParentName(n) {
-        var parentId = n.node.parentId
+        var dNode = n.node
+        if (dNode.type == "InternalNode") {
+            var parentId = dNode.parentId
+            dNode = dependencyData.nodes[parentId]
+        }
+
+        var parentId = dNode.parentId
         var parent = dependencyData.nodes[parentId]
         var pType = parent.type
         if ((pType == "WhileLoop") || (pType == "Conditional") || (pType == "MultiLoop")) {
@@ -178,7 +203,6 @@ function updateTimeTakenByPartitionedKernels(dependencyData) {
     })
 }
 
-/*
 function getThreadLevelPerfStats(dataForTimelineView, numThreads) {
     var threadToData = {}
     for (var i = 0; i < numThreads; i++) {
@@ -188,42 +212,63 @@ function getThreadLevelPerfStats(dataForTimelineView, numThreads) {
 
     var topLevelRuns = dataForTimelineView[0]
     for (tNodeName in topLevelRuns) {
-        //var 
-    } 
-}
-*/
-
-// Updates the following fields of dNodes
-//  time, percentage_time, exec_time_pct, sync_time_pct
-function updateSyncAndExecTimesOfKernels(dependencyData, dataForTimelineView) {
-    function getTotalSyncTime(arr) {
-        return sum(arr.map(function(n) {return n.duration}))
+        var runs = topLevelRuns[tNodeName]
+        if (runs.length > 0) {
+            var tid = runs[0].lane
+            var threadStats = threadToData[tid]
+            runs.forEach(function(run) {
+                if (run.type == "execution") {
+                    threadStats.execTime.abs += run.execTime.abs
+                    threadStats.syncTime.abs += run.syncTime.abs
+                } else if (run.type == "sync") {
+                    threadStats.syncTime.abs += run.duration
+                } else {
+                    console.log("WARNING: Unidentified type of tNode")
+                }
+            })
+        }
     }
 
-    function getTotalSyncTimeOfChildNodes(cNodes) {
-        var dNodes = cNodes.map(function(n) {return n.node})
-        return sum(dNodes.map(function(n) {return n.syncTime.abs}))
+    var appTime = dataForTimelineView.totalAppTime
+    for (var i = 0; i < numThreads; i++) {
+        var td = threadToData[i]
+        td.execTime.pct = (td.execTime.abs * 100) / appTime
+        td.syncTime.pct = (td.syncTime.abs * 100) / appTime
+    }
+
+    return threadToData
+}
+
+function updateSyncAndExecTimesOfKernels(dataForTimelineView, maxNodeLevel) {
+    for (var l = maxNodeLevel; l >= 0; l--) {
+        var runs = dataForTimelineView[l]
+        for (tNodeName in runs) {
+            computeSyncAndExecTimes(runs[tNodeName])
+        }
     }
 
     function computeSyncAndExecTimes(tNodes) {
         if ((tNodes.length > 0) && (tNodes[0].type == "execution")) {
-            var selfSyncTime = sum(tNodes.map(function(n) {return getTotalSyncTime(n.syncNodes)}))
-            var childrenSyncTime = sum(tNodes.map(function(n) {return getTotalSyncTimeOfChildNodes(n.childNodes)}))
+            var totalSyncTime = 0
+            tNodes.forEach(function(n) {
+                var selfSyncTime = sum(n.syncNodes.map(function(o) {return o.duration}))
+                var childrenSyncTime = sum(n.childNodes.map(function(o) {return o.syncTime.abs}))
+                var syncTime = selfSyncTime + childrenSyncTime
+                n.syncTime.abs = syncTime
+                n.syncTime.pct = (syncTime * 100) / n.duration
+                n.execTime.abs = n.duration - syncTime
+                n.execTime.pct = 100 - n.syncTime.pct
+
+                totalSyncTime += syncTime
+            })
+
             var dNode = tNodes[0].node
 
-            var totalSyncTime = selfSyncTime + childrenSyncTime
             dNode.syncTime.abs = totalSyncTime
             dNode.syncTime.pct = (totalSyncTime * 100) / dNode.time
 
             dNode.execTime.abs = dNode.time - totalSyncTime
             dNode.execTime.pct = 100 - dNode.syncTime.pct
-        }
-    }
-
-    for (var l = dependencyData.maxNodeLevel; l >= 0; l--) {
-        var runs = dataForTimelineView[l]
-        for (tNodeName in runs) {
-            computeSyncAndExecTimes(runs[tNodeName])
         }
     }
 }
@@ -348,23 +393,11 @@ function assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes
         n.dep_kernel = m[3]
         n.dep_thread = "T" + m[4]
 
-        /*
-        if (parentName == "null") { // top-level sync barrier
-            addToMap(dataForTimelineView[0], n.name, n)
-        } else {
-            var parentId = dependencyData.nodeNameToId[parentName]
-            var parentLevel = dependencyData.nodes[parentId].level
-            var parent = dataForTimelineView[parentLevel][parentName].filter(function(p) {
-                return (p.start <= n.start) && (n.end <= p.end)
-            })[0]   // There should be just one element in the filtered list anyways
-
-            parent.syncNodes.push(n)
-        }
-        */
-
         if (parentName == "null") { // top-level sync barrier
             n.level = 0
         } else {
+            //console.log(parentName)
+            //console.log(dependencyData)
             var parentId = dependencyData.nodeNameToId[parentName]
             var parentLevel = dependencyData.nodes[parentId].level
             var parent = dataForTimelineView[parentLevel][parentName].filter(function(p) {

@@ -170,7 +170,9 @@ function createTimeline(timelineDivClass, profileData, config) {
 		});
 
 	//timeline labels
-	var minDurationReqForDisplayingLabel = 5000
+	//var minDurationReqForDisplayingLabel = 5000
+	var minDurationReqForDisplayingLabel = 0
+	//var minDurationReqForDisplayingLabel = 0.1 * profileData.timelineData.totalAppTime
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
 	timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)

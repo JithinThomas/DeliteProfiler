@@ -1,1 +1,0 @@
-app={"src": "This is the sample app text\n. Used for testing purposes."}

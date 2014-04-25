@@ -1,5 +1,6 @@
 
 function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, config) {
+	console.time("Generating graph - phase 1")
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
 	var nodes = dataModel["nodes"]
@@ -181,6 +182,9 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		return [p.width(), p.height()];
 	}
 
+	console.timeEnd("Generating graph - phase 1")
+	console.time("Generating graph - phase 2")
+
 	cola
 	    .linkDistance(150)
 	    .avoidOverlaps(true)
@@ -221,7 +225,11 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	        d.height = b.height + extra;
 	    });
 
-	cola.start(20, 20, 20).on("tick", function () {
+	console.timeEnd("Generating graph - phase 2")
+	console.time("Generating graph - phase 3")
+
+	//cola.start(20, 20, 20).on("tick", function () {
+	cola.start(5, 5, 20).on("tick", function () {
 	    node.each(function (d) { d.innerBounds = d.bounds.inflate(-margin); })
 	        .attr("x", function (d) { return d.innerBounds.x; })
 	        .attr("y", function (d) { return d.innerBounds.y; })
@@ -245,6 +253,8 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	    label.attr("x", function (d) { return d.x })
 	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
 	});
+
+	console.timeEnd("Generating graph - phase 3")
 
 	function nodeClickHandler(node) {
 		var sc = node.sourceContext

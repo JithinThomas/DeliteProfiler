@@ -1,6 +1,5 @@
 
 function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, config) {
-	console.time("Generating graph - phase 1")
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
 	var nodes = dataModel["nodes"]
@@ -15,50 +14,12 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 
 	var edges = computeEdges(nodesToDisplay, nodeIdToDisplayIndex)
 
-	function updateInputsDataOfWhileLoops(nodes) {
-		function helper(ns) {
-			var inputs = []
-			var outputs = []
-			ns.forEach(function(n) {
-				inputs = inputs.concat(n.inputs)
-				outputs = outputs.concat(n.outputs)
-			})
-
-			return {"inputs": inputs, "outputs": outputs}
-		}
-
-		nodes.filter(function(n) {return n.type == "WhileLoop"})
-			.forEach(function(n) {
-			 	updateInputsDataOfWhileLoops(n.condOps)
-			 	updateInputsDataOfWhileLoops(n.bodyOps)
-
-			 	tmp = helper(n.condOps)
-			 	n.inputs = n.inputs.concat(tmp.inputs)
-			 	n.outputs = n.inputs.concat(tmp.outputs)
-
-			 	tmp = helper(n.bodyOps)
-			 	n.inputs = n.inputs.concat(tmp.inputs)
-			 	n.outputs = n.inputs.concat(tmp.outputs)
-		})
-	}
-
 	function filterNodes(nodes) {
 		// TODO: We would need to adjust the edges based on the level
 		// eg: If x1 depends on x2, which is an inner component of WhileLoop x3,
 		// then the edge should be from x3 to x1. Does that sound right?
-
 		var nodeIdToDisplayIndex = {}
 		var nodesToDisplay = nodes.filter(function(n) {return (n.type != "InternalNode")})
-		/*
-		var tmp = nodes.filter(function(n) {return (n.type != "InternalNode") && (n.level == 0)})
-		var nodesToDisplay = []
-		nodesToDisplay = nodesToDisplay.concat(tmp)
-		tmp.forEach(function(n) {
-			n.inputs.map(function(i) {return nodes[i]}).forEach(function(m) {if (m.level != 0) {nodesToDisplay.push(m)}})
-			n.outputs.map(function(i) {return nodes[i]}).forEach(function(m) {if (m.level != 0) {nodesToDisplay.push(m)}})
-		})
-		*/
-
 		nodesToDisplay.forEach(function(n, i) {nodeIdToDisplayIndex[n.id] = i})
 
 		return {"nodesToDisplay": nodesToDisplay, "nodeIdToDisplayIndex": nodeIdToDisplayIndex}
@@ -182,9 +143,6 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		return [p.width(), p.height()];
 	}
 
-	console.timeEnd("Generating graph - phase 1")
-	console.time("Generating graph - phase 2")
-
 	cola
 	    .linkDistance(150)
 	    .avoidOverlaps(true)
@@ -225,13 +183,9 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	        d.height = b.height + extra;
 	    });
 
-	console.timeEnd("Generating graph - phase 2")
-	console.time("Generating graph - phase 3")
-
 	var ticks = 0
 	//cola.start(20, 20, 20).on("tick", function () {
 	cola = cola.start(20, 20, 20)
-	///*
 	cola.on("tick", function () {
 	    node.each(function (d) { d.innerBounds = d.bounds.inflate(-margin); })
 	        .attr("x", function (d) { return d.innerBounds.x; })
@@ -250,14 +204,10 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
 
 	    ticks++
-	    console.log("alpha: " + cola.alpha() + " th: " + cola.convergenceThreshold())
 	    if (ticks > 5) {
 	    	cola.stop()	
 	    }
 	});
-	//*/
-
-	console.timeEnd("Generating graph - phase 3")
 
 	function nodeClickHandler(node) {
 		var sc = node.sourceContext
@@ -329,5 +279,34 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	}
 
 	return new controller()
+
+	/*
+	function updateInputsDataOfWhileLoops(nodes) {
+		function helper(ns) {
+			var inputs = []
+			var outputs = []
+			ns.forEach(function(n) {
+				inputs = inputs.concat(n.inputs)
+				outputs = outputs.concat(n.outputs)
+			})
+
+			return {"inputs": inputs, "outputs": outputs}
+		}
+
+		nodes.filter(function(n) {return n.type == "WhileLoop"})
+			.forEach(function(n) {
+			 	updateInputsDataOfWhileLoops(n.condOps)
+			 	updateInputsDataOfWhileLoops(n.bodyOps)
+
+			 	tmp = helper(n.condOps)
+			 	n.inputs = n.inputs.concat(tmp.inputs)
+			 	n.outputs = n.inputs.concat(tmp.outputs)
+
+			 	tmp = helper(n.bodyOps)
+			 	n.inputs = n.inputs.concat(tmp.inputs)
+			 	n.outputs = n.inputs.concat(tmp.outputs)
+		})
+	}
+	*/
 }
 

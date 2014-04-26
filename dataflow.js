@@ -188,12 +188,12 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	cola
 	    .linkDistance(150)
 	    .avoidOverlaps(true)
-	    .flowLayout('y')
+	    //.flowLayout('y')
 	    .size(getColaDimensions())
 	    .nodes(nodesToDisplay)
 	    .links(edges)
-	    .constraints(constraints)
-	    .jaccardLinkLengths();
+	    //.constraints(constraints)
+	    .jaccardLinkLengths()
 
 	var link = graphElements.selectAll(".link")
 	    .data(edges)
@@ -228,8 +228,11 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	console.timeEnd("Generating graph - phase 2")
 	console.time("Generating graph - phase 3")
 
+	var ticks = 0
 	//cola.start(20, 20, 20).on("tick", function () {
-	cola.start(5, 5, 20).on("tick", function () {
+	cola = cola.start(20, 20, 20)
+	///*
+	cola.on("tick", function () {
 	    node.each(function (d) { d.innerBounds = d.bounds.inflate(-margin); })
 	        .attr("x", function (d) { return d.innerBounds.x; })
 	        .attr("y", function (d) { return d.innerBounds.y; })
@@ -237,13 +240,6 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	        .attr("height", function (d) { return d.innerBounds.height(); });
 
 	    link.each(function (d) {
-		        if (d.source === d.target) {
-		            // self edge... need to do something better here.
-		            d.sourceIntersection = { x: d.source.x, y: d.source.y };
-		            d.arrowStart = { x: d.target.x, y: d.target.y };
-		            return;
-		        }
-		        
 		        vpsc.makeEdgeBetween(d, d.source.innerBounds, d.target.innerBounds, 5);})
 	        .attr("x1", function (d) { return d.sourceIntersection.x; })
 	        .attr("y1", function (d) { return d.sourceIntersection.y; })
@@ -252,7 +248,14 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 
 	    label.attr("x", function (d) { return d.x })
 	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
+
+	    ticks++
+	    console.log("alpha: " + cola.alpha() + " th: " + cola.convergenceThreshold())
+	    if (ticks > 5) {
+	    	cola.stop()	
+	    }
 	});
+	//*/
 
 	console.timeEnd("Generating graph - phase 3")
 

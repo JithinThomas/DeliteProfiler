@@ -8,6 +8,7 @@
 	  	<link rel="stylesheet" type="text/css" href="styles/editor.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/dataflow.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/timeline.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/bar-chart.css">
 
 	  	<div id="container">
 			<div id="accordian">
@@ -158,16 +159,17 @@
         <script type="text/javascript" src="editor.js" charset="utf-8"></script>
         <script type="text/javascript" src="read-input-files.js"></script>
         <script type="text/javascript" src="timeline.js"></script>
+        <script type="text/javascript" src="bar-chart.js"></script>
 
         <!-- temporary dependencies -->
-        <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <script type="text/javascript" src="profileData.js"></script-->
+        <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
+        <script type="text/javascript" src="profileData.js"></script>
 
         <!--script type="text/javascript" src="testDeg.deg"></script>
         <script type="text/javascript" src="testProfileData.js"></script-->
 
-        <script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
-        <script type="text/javascript" src="David_app/profileData.js"></script>
+        <!--script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
+        <script type="text/javascript" src="David_app/profileData.js"></script-->
 
 	    <script type="text/javascript">
 	    	var viewState = {}
@@ -183,7 +185,9 @@
 	    	config.markGraphNode = markGraphNode
 	    	config.markNeighborsOnGraph = markNeighborsOnGraph
 	    	config.highlightLineInEditor = highlightLineInEditor
+	    	config.highlightLineInEditorByKernelId = highlightLineInEditorByKernelId
 	    	config.populateKernelInfoTable = populateKernelInfoTable
+	    	config.populateKernelInfoTableById = populateKernelInfoTableById
 	    	config.populateSyncNodeInfoTable = populateSyncNodeInfoTable
 	    	config.syncNodeRegex = /__sync-ExecutionThread-(\d+)-(.*)-(.*)-(\d+)$/
 	    	config.re_partition = /^(.*)_(\d+)$/
@@ -197,11 +201,36 @@
 	      	var profData = {}
 	      	var graphController = {}
 	      	var timelineController = {}
+	      	var topNodesBasedOnTime = []
+	      	var topNodesBasedOnMemUsage = []
+
+	      	var getDisplayTextForTime = function(d) {
+	      		return d.name + " (" + d.percentage_time.toFixed(2) + "%)"
+	      	}
+
+	      	var getDisplayTextForMemUsage = function(d) {
+	      		return d.name + " (" + d.memUsage + "B)"
+	      	}
 
 	      	$("#colorSchemeForGraph").change(function() {
 	      		var colorScheme = $(this).val()
-	      		graphController.changeColoringScheme(colorScheme)
-	      		viewState.graphViewMode = colorScheme
+	      		if (colorScheme == "time") {
+	      			$('.dataflowSvg').hide()
+	      			$("#dfg").css("overflow-y", "auto")
+	      			$(".barChart").remove()
+	      			createBarChart("#dfg", topNodesBasedOnTime, "percentage_time", getDisplayTextForTime, config)
+	      		} else if (colorScheme == "memUsage") {
+	      			$('.dataflowSvg').hide()
+	      			$("#dfg").css("overflow-y", "auto")
+	      			$(".barChart").remove()
+	      			createBarChart("#dfg", topNodesBasedOnMemUsage, "memUsage", getDisplayTextForMemUsage, config)
+	      		} else {
+	      			$(".barChart").hide()
+	      			$("#dfg").css("overflow-y", "hidden")
+	      			$('.dataflowSvg').show()
+		      		graphController.changeColoringScheme(colorScheme)
+		      		viewState.graphViewMode = colorScheme
+		      	}
 	      	})
 
 	      	$('#timelineZoom').keyup(function(event){
@@ -233,29 +262,20 @@
 			})
 			*/
 			
-			console.time("Start debug session")
 			startDebugSession()
-			console.timeEnd("Start debug session")
 
 			function startDebugSession() {
 				degOps = deg.DEG.ops
 				//if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
 					editor = createEditor("code")
-					console.time("Compute profile data")
 		      		profData = getProfileData(degOps, profileData.Profile, config)
-		      		console.timeEnd("Compute profile data")
-
-		      		console.time("Initialize graph")
 		      		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-		      		console.timeEnd("Initialize graph")
 
-		      		console.time("Initialize timeline view")
+		      		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)
+		      		topNodesBasedOnMemUsage = getTopNodes(profData.dependencyData.nodes, "memUsage", 20)
+
 			      	timelineController = createTimeline("#timeline", profData, config)
-			      	console.timeEnd("Initialize timeline view")
-
-			      	console.time("Filter timeline nodes")
 			      	filterNodesOnTimeline()
-			      	console.timeEnd("Filter timeline nodes")
 			    /*
 			    } else {
 			    	alert("Please upload the DEG file and the profile data (profData.js) and retry")
@@ -305,6 +325,12 @@
 	    		}
 	    	}
 
+	    	function highlightLineInEditorByKernelId(nodeId) {
+	    		var node = profData.dependencyData.nodes[nodeId]
+	    		var sc = node.sourceContext
+	    		highlightLineInEditor(sc.file, sc.line)
+	    	}
+
 	    	function populateKernelInfoTable(node) {
 	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.execTime.pct.toFixed(0) + "/" + node.syncTime.pct.toFixed(0) + " %", node.memUsage + " B"]
 	    		var table = $("#kernelInfoTable")[0]
@@ -323,6 +349,32 @@
 	    			row.cells[1].innerHTML = values[i]
 	    		})
 	    	}
+
+	    	function populateKernelInfoTableById(nodeId) {
+	    		var node = profData.dependencyData.nodes[nodeId]
+	    		populateKernelInfoTable(node)
+	    	}
+
+	    	function cloneNode(node, attrs) {
+	    		var o = {}
+	    		attrs.forEach(function(a) {o[a] = node[a]})
+
+	    		return o
+	    	}
+
+			function getTopNodes(nodes, comparisonField, count) {
+			    var topNodes = []
+			    var relevantAttrs = ["id", "name", comparisonField]
+			    var clonedNodes = nodes.filter(function(n) {return n.type != "InternalNode"})
+			    			   		   .map(function(n) {return cloneNode(n, relevantAttrs)})
+			    clonedNodes.sort(function(n1,n2) {return n2[comparisonField] - n1[comparisonField]})
+
+			    for (var i = 0; i < count; i++) {
+			        topNodes.push(clonedNodes[i])
+			    }
+
+			    return topNodes
+			}
 		</script>
 	</body>	
 </html>

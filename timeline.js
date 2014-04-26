@@ -247,17 +247,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 		}
 	}
 
-	/*
-	function getLevelAttr(d) {
-		var node = d.node
-		if (node && ((node.type == "WhileLoop") || (node.level > 0) || (node.type == "InternalNode"))) {
-			return "level-" + node.level
-		}
-
-		return ""
-	}
-	*/
-
 	function getLevelAttr(d) {
 		if ((d.childNodes.length > 0) || (d.syncNodes.length > 0) || (d.parentId >= 0)) {
 			return "level-" + d.level

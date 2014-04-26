@@ -1,20 +1,11 @@
 function getProfileData(degFileNodes, rawProfileData, config) {
     var perfProfile = rawProfileData.PerfProfile
     var numThreads = getNumberOfThreads(perfProfile)
-
-    console.time("Compute dep. data")
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    console.timeEnd("Compute dep. data")
-
-    console.time("Compute timeline data")
     var timelineData = getDataForTimelineView(perfProfile, dependencyData, config)
-    console.timeEnd("Compute timeline data")
-
-    console.time("Extra updates")
     updateTimeTakenByPartitionedKernels(dependencyData)
     updateSyncAndExecTimesOfKernels(timelineData.timing, dependencyData.maxNodeLevel)
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData)
-    console.timeEnd("Extra updates")
 
     return {"dependencyData": dependencyData, "timelineData": timelineData}
 }

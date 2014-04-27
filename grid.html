@@ -42,15 +42,16 @@
 						</ul>
 					</li>
 					<li class="active">
-						<h3>DFG</h3>
+						<h3>Global Stats</h3>
 						<ul>
 							<li>
 								<a href="#">
-									<span>Color Scheme</span>	
+									<span>Metric</span>	
 									<select id="colorSchemeForGraph">
 										<option value="datadeps">Data Deps</option>
 										<option value="time">Exec Time</option>
 										<option value="memUsage">Mem Usage</option>
+										<option value="threadLevelSyncStats">Thread Sync</option>
 									</select>
 								</a>
 							</li>
@@ -162,11 +163,11 @@
         <script type="text/javascript" src="bar-chart.js"></script>
 
         <!-- temporary dependencies -->
-        <script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <script type="text/javascript" src="profileData.js"></script>
+        <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
+        <script type="text/javascript" src="profileData.js"></script-->
 
-        <!--script type="text/javascript" src="testDeg.deg"></script>
-        <script type="text/javascript" src="testProfileData.js"></script-->
+        <script type="text/javascript" src="testDeg.deg"></script>
+        <script type="text/javascript" src="testProfileData.js"></script>
 
         <!--script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
         <script type="text/javascript" src="David_app/profileData.js"></script-->
@@ -189,6 +190,7 @@
 	    	config.populateKernelInfoTable = populateKernelInfoTable
 	    	config.populateKernelInfoTableById = populateKernelInfoTableById
 	    	config.populateSyncNodeInfoTable = populateSyncNodeInfoTable
+	    	config.enableNodeClickHandler = true // for bar-charts.
 	    	config.syncNodeRegex = /__sync-ExecutionThread-(\d+)-(.*)-(.*)-(\d+)$/
 	    	config.re_partition = /^(.*)_(\d+)$/
 			config.re_header = /^(.*)_h$/
@@ -203,6 +205,7 @@
 	      	var timelineController = {}
 	      	var topNodesBasedOnTime = []
 	      	var topNodesBasedOnMemUsage = []
+	      	var threadLevelSyncStats = []
 
 	      	var getDisplayTextForTime = function(d) {
 	      		return d.name + " (" + d.percentage_time.toFixed(2) + "%)"
@@ -210,6 +213,10 @@
 
 	      	var getDisplayTextForMemUsage = function(d) {
 	      		return d.name + " (" + d.memUsage + "B)"
+	      	}
+
+	      	var getDisplayTextForThreadLevelSync = function(d) {
+	      		return d.name + " (" + d.syncTimePct + "%)"
 	      	}
 
 	      	$("#colorSchemeForGraph").change(function() {
@@ -224,6 +231,11 @@
 	      			$("#dfg").css("overflow-y", "auto")
 	      			$(".barChart").remove()
 	      			createBarChart("#dfg", topNodesBasedOnMemUsage, "memUsage", getDisplayTextForMemUsage, config)
+	      		} else if (colorScheme == "threadLevelSyncStats") {
+	      			$('.dataflowSvg').hide()
+	      			$("#dfg").css("overflow-y", "auto")
+	      			$(".barChart").remove()
+	      			createBarChart("#dfg", threadLevelSyncStats, "syncTimePct", getDisplayTextForThreadLevelSync, config)
 	      		} else {
 	      			$(".barChart").hide()
 	      			$("#dfg").css("overflow-y", "hidden")
@@ -273,6 +285,10 @@
 
 		      		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)
 		      		topNodesBasedOnMemUsage = getTopNodes(profData.dependencyData.nodes, "memUsage", 20)
+		      		threadLevelSyncStats = profData.threadLevelPerfStats.map(function(o, i) {return {
+		      			name: "T" + i,
+		      			syncTimePct: o.syncTime.pct
+		      		}})
 
 			      	timelineController = createTimeline("#timeline", profData, config)
 			      	filterNodesOnTimeline()
@@ -369,6 +385,7 @@
 			    			   		   .map(function(n) {return cloneNode(n, relevantAttrs)})
 			    clonedNodes.sort(function(n1,n2) {return n2[comparisonField] - n1[comparisonField]})
 
+			    if (count > clonedNodes.length) count = clonedNodes.length
 			    for (var i = 0; i < count; i++) {
 			        topNodes.push(clonedNodes[i])
 			    }

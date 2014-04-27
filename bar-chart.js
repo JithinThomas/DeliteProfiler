@@ -35,6 +35,7 @@ function createBarChart(parentDivId, data, comparisonAttr, getText, config) {
 	    .attr("dy", ".35em")
 	    .text(getText)
 	    .on("click", nodeClickHandler)
+
 }
 
 function nodeClickHandler(d) {

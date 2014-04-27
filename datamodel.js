@@ -6,8 +6,9 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     updateTimeTakenByPartitionedKernels(dependencyData)
     updateSyncAndExecTimesOfKernels(timelineData.timing, dependencyData.maxNodeLevel)
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData)
+    var threadLevelPerfStats = getThreadLevelPerfStats(timelineData, numThreads)
 
-    return {"dependencyData": dependencyData, "timelineData": timelineData}
+    return {"dependencyData": dependencyData, "timelineData": timelineData, "threadLevelPerfStats": threadLevelPerfStats}
 }
 
 function updateMemUsageOfDNodes(memProfile, dependencyData) {
@@ -194,38 +195,42 @@ function updateTimeTakenByPartitionedKernels(dependencyData) {
     })
 }
 
-function getThreadLevelPerfStats(dataForTimelineView, numThreads) {
-    var threadToData = {}
+function getThreadLevelPerfStats(timelineData, numThreads) {
+    var threadToData = []
     for (var i = 0; i < numThreads; i++) {
         threadToData[i] = {"execTime": {"abs": 0, "pct": 0},
                            "syncTime": {"abs": 0, "pct": 0}}
     }
 
-    var topLevelRuns = dataForTimelineView[0]
+    var topLevelRuns = timelineData.timing[0]
     for (tNodeName in topLevelRuns) {
-        var runs = topLevelRuns[tNodeName]
-        if (runs.length > 0) {
-            var tid = runs[0].lane
-            var threadStats = threadToData[tid]
-            runs.forEach(function(run) {
-                if (run.type == "execution") {
-                    threadStats.execTime.abs += run.execTime.abs
-                    threadStats.syncTime.abs += run.syncTime.abs
-                } else if (run.type == "sync") {
-                    threadStats.syncTime.abs += run.duration
-                } else {
-                    console.log("WARNING: Unidentified type of tNode")
-                }
-            })
+        if (tNodeName != "all") {
+            var runs = topLevelRuns[tNodeName]
+            if (runs.length > 0) {
+                var tid = runs[0].lane
+                var threadStats = threadToData[tid]
+                runs.forEach(function(run) {
+                    if (run.type == "execution") {
+                        threadStats.execTime.abs += run.execTime.abs
+                        threadStats.syncTime.abs += run.syncTime.abs
+                    } else if (run.type == "sync") {
+                        threadStats.syncTime.abs += run.duration
+                    } else {
+                        console.log("WARNING: Unidentified type of tNode")
+                    }
+                })
+            }
         }
     }
 
-    var appTime = dataForTimelineView.totalAppTime
+    var appTime = timelineData.totalAppTime
     for (var i = 0; i < numThreads; i++) {
         var td = threadToData[i]
-        td.execTime.pct = (td.execTime.abs * 100) / appTime
-        td.syncTime.pct = (td.syncTime.abs * 100) / appTime
+        td.execTime.pct = ((td.execTime.abs * 100) / appTime).toFixed(2)
+        td.syncTime.pct = ((td.syncTime.abs * 100) / appTime).toFixed(2)
     }
+
+    console.log(threadToData)
 
     return threadToData
 }

@@ -43,9 +43,16 @@ function readDegFile(evt) {
     };
   })();
 
-  var degFile = evt.target.files[0]
-  reader.readAsText(degFile)
-  viewState.degFile = degFile.name
+  if (evt.target.files.length > 0) {
+    var degFile = evt.target.files[0]
+    reader.readAsText(degFile)
+    viewState.degFile = degFile.name
+
+    $("#degFileName").text(viewState.degFile)
+    if (viewState.profileDataFile != "") {
+      $("#startButton").css("border", "2px solid green")
+    }
+  }
 }
 
 function addDegFileHandler(inputButtonId) {
@@ -53,7 +60,7 @@ function addDegFileHandler(inputButtonId) {
 }
 
 // =====================================================
-// Read profilleData.js (the performance profile data)
+// Read profileData.js (the performance profile data)
 // =====================================================
 
 var profileData = {}
@@ -65,8 +72,15 @@ function readProfileDataFile(evt) {
     };
   })();
 
-  reader.readAsText(evt.target.files[0])
-  viewState.profileDataFile = evt.target.files[0].name
+  if (evt.target.files.length > 0) {
+    reader.readAsText(evt.target.files[0])
+    viewState.profileDataFile = evt.target.files[0].name
+
+    $("#profDataFileName").text(viewState.profileDataFile)
+    if (viewState.degFile != "") {
+      $("#startButton").css("border", "2px solid green")
+    }
+  }
 }
 
 function addProfileDataFileHandler(inputButtonId) {

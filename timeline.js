@@ -1,9 +1,8 @@
 
-var rectHeight = 20;
-
 function createTimeline(timelineDivClass, profileData, config) {
 	// TODO: Rename the variable 'items' 
 	var items = getDataInTimelineFormat(profileData.timelineData.timing)
+	var rectHeight = 20;
 
 	function getDataInTimelineFormat(data) {
 		var res = []
@@ -19,55 +18,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	var re_partition = /^(.*)_(\d+)$/
 	var re_header = /^(.*)_h$/
-
-	var table = d3.select(timelineDivClass).append("table")
-	    .attr("class", "tooltip")
-	    .attr("position", "absolute")
-	    .style("opacity", 0);
-
-	table.append("col")
-		.style("width", "60%")
-
-	table.append("col")
-		.style("width", "40%")
-
-	var columns = ["name", "value"]
-	var datapoints = ["name", "target", "type", "# runs", "time", "% of tot time", "mem_alloc"]
-	var valuesOfDataPoints = ["Generic", "Scala", "MultiLoop", "3", "40s", "30%", "164 MB"]
-	var data = []
-	for (i in datapoints) {
-		data.push({name: datapoints[i], value: valuesOfDataPoints[i]})
-	}
-
-	function tabulate(data, columns) {
-		// In the next statement, any non-empty array can be used as input to 'data'
-		// Refer to http://stackoverflow.com/questions/14514776/updating-an-html-table-in-d3-js-using-a-reusable-chart
-		table.selectAll('thead').data([0]).enter().append('thead');
-		var thead = table.select('thead');
-
-		table.selectAll('tbody').data([0]).enter().append('tbody');
-		var tbody = table.select('tbody');
-
-		// create a row for each object in the data
-		var rows = tbody.selectAll("tr")
-			.data(data)
-			.enter()
-			.append("tr");
-
-		// create a cell in each row for each column
-		var cells = rows.selectAll("td")
-			.data(function(row) {
-		    	return columns.map(function(column) {
-		        	return {column: column, value: row[column]};
-		    	});
-			})
-			.enter()
-			.append("td")
-			.attr("class", "tooltipValue")
-		  	.text(function(d) { return d.value; });
-
-		return table;
-	}
 
 	function getDisplayDataForNode(node) {
 		var data = [node.name,
@@ -109,12 +59,13 @@ function createTimeline(timelineDivClass, profileData, config) {
 			.domain([0, numLanes])
 			.range([0, chartHeight]);
 	
+	//$(".timelineWrapper").remove() // Removing timeline graphs generated in previous debug sessions, if any
 	var div2 = d3.select(timelineDivClass)
 				.append("div")
 				.attr("float", "right")
-				.attr("class", "timeLineWrapper")
+				.attr("class", "timelineWrapper")
 
-	$('timeLineWrapper').css("width", "" + parentDiv.width() + "px")
+	$('timelineWrapper').css("width", "" + parentDiv.width() + "px")
 
 	var chart = div2
 				.append("svg")
@@ -161,18 +112,10 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("title", "rectangle")
 		.attr("vector-effect", "non-scaling-stroke") // from http://stackoverflow.com/questions/10357292/how-to-make-stroke-width-immune-to-the-current-transformation-matrix
 		.style("fill", getRectFill)
-		.on("mouseover", mouseover)
-		.on("mouseout", mouseout)
-		.on("mousemove", mousemove)
 		.on("click", selectNode)
-		.on("contextmenu", function(data, index) {
-		    //d3.event.preventDefault();
-		});
 
 	//timeline labels
-	//var minDurationReqForDisplayingLabel = 5000
-	var minDurationReqForDisplayingLabel = 0
-	//var minDurationReqForDisplayingLabel = 0.1 * profileData.timelineData.totalAppTime
+	var minDurationReqForDisplayingLabel = 0.05 * profileData.timelineData.totalAppTime
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
 	timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)
@@ -184,9 +127,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("dy", ".5ex")
 		.attr("title", "sample title")
 		.attr("class", "timelineNodeName")
-		.on("mouseover", mouseover)
-		.on("mouseout", mouseout)
-		.on("mousemove", mousemove)
 		.on("click", selectNode)
 		.attr("text-anchor", "middle");
 
@@ -197,28 +137,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 		return laneColors[d.lane]
 	}
-
-	function mousemove(d) {
-        d3.select("table")
-          .style("left", d3.select(this).attr("x") + "px")     
-    	  .style("top", (parseFloat(d3.select(this).attr("y")) + rectHeight + 1) + "px");
-    }
-
-  	function mouseover(p) {
-      	d3.select("table").transition()
-          .duration(500)
-          .style("opacity", 1);
-      	d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
-      	d3.selectAll(".column text").classed("active", function(d, i) { return i == p.x; });
-
-      	tabulate(data, columns)
-  	}
-
-  	function mouseout() {
-      	d3.select(".tooltip").transition()
-          .duration(500)
-          .style("opacity", 1e-6);
-  	}
 
 	function selectNode(d) {
 		if (d.type == "sync") {
@@ -238,12 +156,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 			}
 
 			var sc = n.sourceContext
-			if (sc.file == viewState.appSourceFileName) {
-				config.highlightLineInEditor(sc.line, true)
-			} else {
-				console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
-				config.highlightLineInEditor(sc.line, false) // HACK
-			}
+			config.highlightLineInEditor(sc.file, sc.line)
 		}
 	}
 
@@ -312,6 +225,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 		d3.selectAll(".timelineNodeName").attr("x", function(d) {return scale*((x(d.start) + x(d.end))/2);})
 		d3.select(".chart").attr("width", scale * chartWidth)
 		d3.selectAll(".laneLine").attr("x2", scale * chartWidth)
+		//scroll(scale * $(".timelineWrapper").scrollLeft())
 	}
 
 	function hideSyncNodes() {
@@ -359,3 +273,82 @@ function createTimeline(timelineDivClass, profileData, config) {
 
 	return new controller()
 }
+
+// Code for displaying tooltip tables
+
+/*
+var table = d3.select(timelineDivClass).append("table")
+    .attr("class", "tooltip")
+    .attr("position", "absolute")
+    .style("opacity", 0);
+
+table.append("col")
+	.style("width", "60%")
+
+table.append("col")
+	.style("width", "40%")
+
+var columns = ["name", "value"]
+var datapoints = ["name", "target", "type", "# runs", "time", "% of tot time", "mem_alloc"]
+var valuesOfDataPoints = ["Generic", "Scala", "MultiLoop", "3", "40s", "30%", "164 MB"]
+var data = []
+for (i in datapoints) {
+	data.push({name: datapoints[i], value: valuesOfDataPoints[i]})
+}
+*/
+
+/*
+function tabulate(data, columns) {
+	// In the next statement, any non-empty array can be used as input to 'data'
+	// Refer to http://stackoverflow.com/questions/14514776/updating-an-html-table-in-d3-js-using-a-reusable-chart
+	table.selectAll('thead').data([0]).enter().append('thead');
+	var thead = table.select('thead');
+
+	table.selectAll('tbody').data([0]).enter().append('tbody');
+	var tbody = table.select('tbody');
+
+	// create a row for each object in the data
+	var rows = tbody.selectAll("tr")
+		.data(data)
+		.enter()
+		.append("tr");
+
+	// create a cell in each row for each column
+	var cells = rows.selectAll("td")
+		.data(function(row) {
+	    	return columns.map(function(column) {
+	        	return {column: column, value: row[column]};
+	    	});
+		})
+		.enter()
+		.append("td")
+		.attr("class", "tooltipValue")
+	  	.text(function(d) { return d.value; });
+
+	return table;
+}
+*/
+
+/*
+function mousemove(d) {
+    d3.select("table")
+      .style("left", d3.select(this).attr("x") + "px")     
+	  .style("top", (parseFloat(d3.select(this).attr("y")) + rectHeight + 1) + "px");
+}
+
+	function mouseover(p) {
+  	d3.select("table").transition()
+      .duration(500)
+      .style("opacity", 1);
+  	d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
+  	d3.selectAll(".column text").classed("active", function(d, i) { return i == p.x; });
+
+  	//tabulate(data, columns)
+	}
+
+	function mouseout() {
+  	d3.select(".tooltip").transition()
+      .duration(500)
+      .style("opacity", 1e-6);
+	}
+*/

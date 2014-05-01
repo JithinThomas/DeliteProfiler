@@ -39,6 +39,7 @@ function createBarChart(parentDivId, data, comparisonAttr, getText, config) {
 }
 
 function nodeClickHandler(d) {
+	console.log("Hi")
 	config.populateKernelInfoTableById(d.id)
 	config.highlightLineInEditorByKernelId(d.id)
 }

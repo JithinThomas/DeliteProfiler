@@ -18,20 +18,23 @@
 						<ul>
 							<li>
 								<a href="#">
-									<input type="button" value="Choose src dir        " onclick="document.getElementById('srcDirInput').click();" />
-									<input type="file" id="srcDirInput" name="files[]"  multiple webkitdirectory="" directory="" style="display: none;" />
-								</a>
-							</li>
-							<li>
-								<a href="#">
 									<input type="button" value="Choose DEG file      " onclick="document.getElementById('degFileInput').click();" />
+									<span id="degFileName">(DEG_file_name)</span>
 									<input type="file" id="degFileInput" name="files[]" style="display: none;" />
 								</a>
 							</li>
 							<li>
 								<a href="#">
 									<input type="button" value="Choose profile data" onclick="document.getElementById('profDataInput').click();" />
+									<span id="profDataFileName">(Profile_data_file)</span>
 									<input type="file" id="profDataInput" name="files[]" style="display: none;" />
+								</a>
+							</li>
+							<li>
+								<a href="#">
+									<input type="button" value="Choose src dir        " onclick="document.getElementById('srcDirInput').click();" />
+									<span id="srcFileName">(Src_file_name)</span>
+									<input type="file" id="srcDirInput" name="files[]"  multiple webkitdirectory="" directory="" style="display: none;" />
 								</a>
 							</li>
 							<li>
@@ -49,6 +52,7 @@
 									<span>Metric</span>	
 									<select id="colorSchemeForGraph">
 										<option value="datadeps">Data Deps</option>
+										<option value="nodeType">Node Type</option>
 										<option value="time">Exec Time</option>
 										<option value="memUsage">Mem Usage</option>
 										<option value="threadLevelSyncStats">Thread Sync</option>
@@ -73,7 +77,7 @@
 							<li>
 								<a href="#">
 									<span>Zoom </span>
-									<input type="text" id="timelineZoom" size="5" value="100" style="text-align: right"> %
+									<input type="text" id="timelineZoom" size="5" value="100" style="text-align: right; margin: 0 0 0 5"> %
 								</a>
 							</li>
 						</ul>
@@ -81,6 +85,12 @@
 					<li class="active">
 						<h3>Kernel Info</h3>
 						<ul>
+							<li>
+								<a href="#">
+									<span>Search</span>
+									<input type="text" id="searchKernel" size="5" value="" style="text-align: right; margin: 0 0 0 5; width: 120">
+								</a>
+							</li>
 							<li>
 								<table id="kernelInfoTable" class="sidebarTable">
 									<th>Property</th>
@@ -146,13 +156,12 @@
 		</div>
 
 		<!-- external libraries -->
-        <script type="text/javascript" src="../jquery/dist/jquery.min.js"></script>
-	    <script type="text/javascript" src="../ace-editor/ace-builds/src-noconflict/ace.js" charset="utf-8"></script>
-	    <!--script type="text/javascript" src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script-->
-	    <script type="text/javascript" src="d3.min.js"></script>
-	    <script type="text/javascript" src="../cola/highlight.pack.js"></script>
-        <script type="text/javascript" src="../cola/cola.v1.min.js"></script>
-        <script type="text/javascript" src="../graphlib-dot/graphlib-dot.min.js"></script>
+        <script type="text/javascript" src="lib/jquery.min.js"></script>
+	    <script type="text/javascript" src="lib/ace.js" charset="utf-8"></script>
+	    <script type="text/javascript" src="lib/d3.min.js"></script>
+	    <script type="text/javascript" src="lib/highlight.pack.js"></script>
+        <script type="text/javascript" src="lib/cola.v1.min.js"></script>
+        <script type="text/javascript" src="lib/graphlib-dot.min.js"></script>
 
         <!-- internal libraries -->
         <script type="text/javascript" src="dataflow.js"></script>
@@ -161,16 +170,6 @@
         <script type="text/javascript" src="read-input-files.js"></script>
         <script type="text/javascript" src="timeline.js"></script>
         <script type="text/javascript" src="bar-chart.js"></script>
-
-        <!-- temporary dependencies -->
-        <!--script type="text/javascript" src="../../HelloSimpleCompiler.deg"></script>
-        <script type="text/javascript" src="profileData.js"></script-->
-
-        <script type="text/javascript" src="testDeg.deg"></script>
-        <script type="text/javascript" src="testProfileData.js"></script>
-
-        <!--script type="text/javascript" src="David_app/RNTNCompiler.deg"></script>
-        <script type="text/javascript" src="David_app/profileData.js"></script-->
 
 	    <script type="text/javascript">
 	    	var viewState = {}
@@ -208,7 +207,9 @@
 	      	var threadLevelSyncStats = []
 
 	      	var getDisplayTextForTime = function(d) {
-	      		return d.name + " (" + d.percentage_time.toFixed(2) + "%)"
+	      		var timeInMs = (d.time/1000).toFixed(0)
+	    		var timeStr = " (" + timeInMs + "ms:" + d.percentage_time.toFixed(0) + "%)"
+	      		return d.name + timeStr
 	      	}
 
 	      	var getDisplayTextForMemUsage = function(d) {
@@ -222,24 +223,16 @@
 	      	$("#colorSchemeForGraph").change(function() {
 	      		var colorScheme = $(this).val()
 	      		if (colorScheme == "time") {
-	      			$('.dataflowSvg').hide()
-	      			$("#dfg").css("overflow-y", "auto")
-	      			$(".barChart").remove()
+	      			setUpDivToGenerateBarChart()
 	      			createBarChart("#dfg", topNodesBasedOnTime, "percentage_time", getDisplayTextForTime, config)
 	      		} else if (colorScheme == "memUsage") {
-	      			$('.dataflowSvg').hide()
-	      			$("#dfg").css("overflow-y", "auto")
-	      			$(".barChart").remove()
+	      			setUpDivToGenerateBarChart()
 	      			createBarChart("#dfg", topNodesBasedOnMemUsage, "memUsage", getDisplayTextForMemUsage, config)
 	      		} else if (colorScheme == "threadLevelSyncStats") {
-	      			$('.dataflowSvg').hide()
-	      			$("#dfg").css("overflow-y", "auto")
-	      			$(".barChart").remove()
+	      			setUpDivToGenerateBarChart()
 	      			createBarChart("#dfg", threadLevelSyncStats, "syncTimePct", getDisplayTextForThreadLevelSync, config)
 	      		} else {
-	      			$(".barChart").hide()
-	      			$("#dfg").css("overflow-y", "hidden")
-	      			$('.dataflowSvg').show()
+	      			setUpDivToGenerateDEGGraph()
 		      		graphController.changeColoringScheme(colorScheme)
 		      		viewState.graphViewMode = colorScheme
 		      	}
@@ -251,57 +244,17 @@
 			    }
 			})
 
+			$('#searchKernel').keyup(function(event){
+			    if(event.keyCode == 13){
+			        searchNode($(this).val())
+			    }
+			})
+
 	      	$("#timelineLevelFilter").change(filterNodesOnTimeline)
 	      	$('#startButton').click(startDebugSession)
 
-	      	/*
-			$(document).ready(function () {
-				/*
-				$('#accordian > ul > li').click(function() {
-					$("#accordian ul li").removeClass("active")
-				    $(this).addClass("active")
-
-				    var checkElement = $(this).next()
-				    if ((checkElement.is("ul")) && (checkElement.is(":visible"))) {
-				        return false
-				    }
-				    if ((checkElement.is('ul')) && (!checkElement.is(':visible'))) {
-				        $("#accordian ul:visible").slideUp("normal")
-				        checkElement.slideDown("normal")
-				        return false
-				    }
-			  	})
-			})
-			*/
-			
-			startDebugSession()
-
-			function startDebugSession() {
-				degOps = deg.DEG.ops
-				//if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
-					editor = createEditor("code")
-		      		profData = getProfileData(degOps, profileData.Profile, config)
-		      		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-
-		      		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)
-		      		topNodesBasedOnMemUsage = getTopNodes(profData.dependencyData.nodes, "memUsage", 20)
-		      		threadLevelSyncStats = profData.threadLevelPerfStats.map(function(o, i) {return {
-		      			name: "T" + i,
-		      			syncTimePct: o.syncTime.pct
-		      		}})
-
-			      	timelineController = createTimeline("#timeline", profData, config)
-			      	filterNodesOnTimeline()
-			    /*
-			    } else {
-			    	alert("Please upload the DEG file and the profile data (profData.js) and retry")
-			    }
-			    //*/
-			}
-
 			function filterNodesOnTimeline() {
 				var selectedLevel = parseInt($("#timelineLevelFilter").val())
-	      		console.log(selectedLevel)
 	      		for (var i = 0; i < 4; i++) {
 	      			var filter = "level=level-" + i
 	      			if (i != selectedLevel) {
@@ -336,6 +289,7 @@
 	    			if (file != viewState.appSourceFileName) readFile(file)
 					viewState.highlightedLine = highlightLine(line)
 					viewState.appSourceFileName = file
+					$("#srcFileName").text(file)
 	    		} else {
 	    			console.log("WARNING: Selected kernel's sourceContext does not match the source file being viewed")
 	    		}
@@ -348,7 +302,9 @@
 	    	}
 
 	    	function populateKernelInfoTable(node) {
-	    		var values = [node.name, node.type, node.target, node.percentage_time.toFixed(2) + " %", node.execTime.pct.toFixed(0) + "/" + node.syncTime.pct.toFixed(0) + " %", node.memUsage + " B"]
+	    		var timeInMs = (node.time/1000).toFixed(0)
+	    		var timeStr = timeInMs + "ms (" + node.percentage_time.toFixed(0) + "%)"
+	    		var values = [node.name, node.type, node.target, timeStr , node.execTime.pct.toFixed(0) + "/" + node.syncTime.pct.toFixed(0) + " %", node.memUsage + " B"]
 	    		var table = $("#kernelInfoTable")[0]
 	    		values.forEach(function(v, i) {
 	    			var row = table.rows[i + 1]
@@ -380,7 +336,7 @@
 
 			function getTopNodes(nodes, comparisonField, count) {
 			    var topNodes = []
-			    var relevantAttrs = ["id", "name", comparisonField]
+			    var relevantAttrs = ["id", "name", "time", comparisonField] // HACK: 'time' field need not be included when computing top nodes based on mem usage
 			    var clonedNodes = nodes.filter(function(n) {return n.type != "InternalNode"})
 			    			   		   .map(function(n) {return cloneNode(n, relevantAttrs)})
 			    clonedNodes.sort(function(n1,n2) {return n2[comparisonField] - n1[comparisonField]})
@@ -392,6 +348,72 @@
 
 			    return topNodes
 			}
+
+			function startDebugSession() {
+				if ((viewState.degFile != "") && (viewState.profileDataFile != "")) {
+					$(".dataflowSvg").remove() // Removing DEG graphs generated in previous debug sessions, if any
+					$(".timelineWrapper").remove()
+
+					editor = createEditor("code")
+		      		profData = getProfileData(degOps, profileData.Profile, config)
+		      		graphController = createDataFlowGraph("top", -1, cola, "#dfg", profData.dependencyData, viewState, config)
+
+		      		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)
+		      		topNodesBasedOnMemUsage = getTopNodes(profData.dependencyData.nodes, "memUsage", 20)
+		      		threadLevelSyncStats = profData.threadLevelPerfStats.map(function(o, i) {return {
+		      			name: "T" + i,
+		      			syncTimePct: o.syncTime.pct
+		      		}})
+
+			      	timelineController = createTimeline("#timeline", profData, config)
+			      	filterNodesOnTimeline()
+			    } else {
+			    	alert("Please upload the DEG file and the profile data (profData.js) and retry")
+			    }
+			}
+
+			function searchNode(nodeName) {
+				var nodeId = profData.dependencyData.nodeNameToId[nodeName]
+				var node = profData.dependencyData.nodes[nodeId]
+				config.populateKernelInfoTable(node)
+
+				var sc = node.sourceContext
+				config.highlightLineInEditor(sc.file, sc.line)
+
+				graphController.markNeighbors(nodeId)
+			}
+
+	      	function setUpDivToGenerateBarChart() {
+	      		$('.dataflowSvg').hide()
+      			$("#dfg").css("overflow-y", "auto")
+      			$(".barChart").remove()
+	      	}
+
+	      	function setUpDivToGenerateDEGGraph() {
+	      		$(".barChart").hide()
+      			$("#dfg").css("overflow-y", "hidden")
+      			$('.dataflowSvg').show()
+	      	}
+
+			$(document).ready(function () {
+				$("#right").css("width", $("#container").width() - $("#accordian").width())
+				/*
+				$('#accordian > ul > li').click(function() {
+					$("#accordian ul li").removeClass("active")
+				    $(this).addClass("active")
+
+				    var checkElement = $(this).next()
+				    if ((checkElement.is("ul")) && (checkElement.is(":visible"))) {
+				        return false
+				    }
+				    if ((checkElement.is('ul')) && (!checkElement.is(':visible'))) {
+				        $("#accordian ul:visible").slideUp("normal")
+				        checkElement.slideDown("normal")
+				        return false
+				    }
+			  	})
+				*/
+			})
 		</script>
 	</body>	
 </html>

@@ -28,39 +28,9 @@ html,body
 	stroke: black;
 }
 
-.miniItem0 {
-	fill: orange;
-	stroke-width: 1;	
-	stroke: black;	
-}
-
-.miniItem1 {
-	fill: green;
-	stroke-width: 1;	
-	stroke: black;	
-}
-
-.miniItem2 {
-	fill: lightskyblue;
-	stroke-width: 1;	
-	stroke: black;	
-}
-
-.miniItem3 {
-	fill: red;
-	stroke-width: 1;	
-	stroke: black;	
-}
-
-.miniItem4 {
-	fill: brown;
-	stroke-width: 1;	
-	stroke: black;		
-}
-
 .timelineWrapper {
 	overflow-x: auto;
-	overflow-y: hidden; 
+	overflow-y: auto; 
 }
 
 .brush .extent {

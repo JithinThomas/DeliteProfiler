@@ -14,7 +14,7 @@ function getProfileData(degFileNodes, rawProfileData, config) {
 function updateMemUsageOfDNodes(memProfile, dependencyData) {
     for(n in memProfile) {
         if (n != "dummy") {
-            var totMemUsage = sum(memProfile[n])
+            var totMemUsage = memProfile[n]
             var id = dependencyData.nodeNameToId[n]
             var dNode = dependencyData.nodes[id]
             if (dNode.type == "InternalNode") {  
@@ -230,8 +230,6 @@ function getThreadLevelPerfStats(timelineData, numThreads) {
         td.syncTime.pct = ((td.syncTime.abs * 100) / appTime).toFixed(2)
     }
 
-    console.log(threadToData)
-
     return threadToData
 }
 
@@ -279,11 +277,13 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
     var thenOpsData = [] // for 'Conditional' nodes
     var elseOpsData = [] // for 'Conditional' nodes
 
-    function processChildNodes(childNodes) {
+    function processChildNodes(childNodes) {    
         var res = []
-        childNodes.forEach(function(cn) {
-            res = res.concat(initializeNodeDataFromDegFile(cn, level + 1, numThreads))
-        })
+        if (childNodes) {
+            childNodes.forEach(function(cn) {
+                res = res.concat(initializeNodeDataFromDegFile(cn, level + 1, numThreads))
+            })
+        }
 
         return res
     }

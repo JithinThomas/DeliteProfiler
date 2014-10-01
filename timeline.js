@@ -1,39 +1,10 @@
 
-function createTimeline(timelineDivClass, profileData, config) {
+function createTimeline(parentDivId, profileData, config) {
 	// TODO: Rename the variable 'items' 
-	var items = getDataInTimelineFormat(profileData.timelineData.timing)
+	var items = convertDataToTimelineFormat(profileData.timelineData.timing)
 	var rectHeight = 20;
-
-	function getDataInTimelineFormat(data) {
-		var res = []
-		for (level in data) {
-			var runs = data[level]
-			for (node in runs) {
-				res = res.concat(runs[node])
-			}
-		}
-
-		return res
-	}
-
 	var re_partition = /^(.*)_(\d+)$/
 	var re_header = /^(.*)_h$/
-
-	function getDisplayDataForNode(node) {
-		var data = [node.name,
-					node.target,
-					node.type,
-					node.num_of_runs,
-					node.time,
-					node.percentage_time,
-					"NA"]
-		return data
-	}
-
-	function getAppBeginAndEndTimes(items) {
-		var appNode = items.filter(function(n) {return n.name == "all"})[0]
-		return {"begin": appNode.start, "end": appNode.end, "duration": appNode.duration}
-	}
 	  
 	var lanes = profileData.timelineData.lanes
 	var colors = ["orange", "green", "lightskyblue", "red", "brown"]
@@ -43,24 +14,21 @@ function createTimeline(timelineDivClass, profileData, config) {
 	var	timeBegin = tmp.begin - tmp.duration * 0.01
 	var	timeEnd = tmp.end + tmp.duration * 0.01
 
-	var parentDiv = $('#timeline')
-
-
+	var parentDiv = $(parentDivId)
 	var m = [20, 15, 15, 120], //top right bottom left
 		chartWidth = parentDiv.width() * 2.5,
 		chartHeight = parentDiv.height();
 
-	//scales
+    var initialXRange = [m[3], chartWidth]
 	var x = d3.scale.linear()
 			.domain([timeBegin, timeEnd + 50])
-			.range([m[3], chartWidth]);
+			.range(initialXRange);
 
 	var y = d3.scale.linear()
 			.domain([0, numLanes])
 			.range([0, chartHeight]);
 	
-	//$(".timelineWrapper").remove() // Removing timeline graphs generated in previous debug sessions, if any
-	var div2 = d3.select(timelineDivClass)
+	var div2 = d3.select(parentDivId)
 				.append("div")
 				.attr("float", "right")
 				.attr("class", "timelineWrapper")
@@ -70,6 +38,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 	var chart = div2
 				.append("svg")
 				.attr("width", chartWidth)
+				.attr("height", chartHeight)
 				.attr("class", "chart");
 
 	var timelineGraph = chart.append("g")
@@ -98,37 +67,175 @@ function createTimeline(timelineDivClass, profileData, config) {
 		.attr("class", "laneText");
 
 	//timeline item rects
-	timelineGraph.append("g").selectAll("nodes")
+	createTimelineNodes(items, "node")
+	/*timelineGraph.append("g").selectAll("nodes")
 		.data(items)
 		.enter().append("rect")
-		.attr("class", getClassNameForRect)
-		.attr("level", getLevelAttr)
+		.attr("class", function(d) {return getClassNameForRect(d) + " " + getLevelAttr(d)})
 		.attr("x", function(d) {return x(d.start);})
 		.attr("y", function(d) {return y(d.lane + .5) - rectHeight/2;})
 		.attr("width", function(d) {return x(d.end) - x(d.start);})
 		.attr("height", rectHeight)
 		.attr("id", function(d) {return d.id})
 		.attr("name", function(d) {return getNodeName(d.name)})
-		.attr("title", "rectangle")
 		.attr("vector-effect", "non-scaling-stroke") // from http://stackoverflow.com/questions/10357292/how-to-make-stroke-width-immune-to-the-current-transformation-matrix
 		.style("fill", getRectFill)
 		.on("click", selectNode)
+		.on("dblclick", dblClickHandler)*/
+	
 
 	//timeline labels
 	var minDurationReqForDisplayingLabel = 0.05 * profileData.timelineData.totalAppTime
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
-	timelineGraph.append("g").selectAll(".miniLabels")
+	createTimelineLabels(eventsWithLabel, "miniLabels")
+	/*timelineGraph.append("g").selectAll(".miniLabels")
 		.data(eventsWithLabel)
 		.enter().append("text")
 		.text(getText)
-		.attr("level", getLevelAttr)
 		.attr("x", function(d) {return (x(d.start) + x(d.end))/2;})
 		.attr("y", function(d) {return y(d.lane + .5);})
 		.attr("dy", ".5ex")
-		.attr("title", "sample title")
-		.attr("class", "timelineNodeName")
+		.attr("id", function(d) {return d.id + "-label"})
+		.attr("class", function(d) {return "timelineNodeName " + getLevelAttr(d)})
 		.on("click", selectNode)
-		.attr("text-anchor", "middle");
+		.attr("text-anchor", "middle")*/
+
+	function convertDataToTimelineFormat(data) {
+		var res = []
+		for (level in [0]) {
+			var runs = data[level]
+			for (node in runs) {
+				res = res.concat(runs[node])
+			}
+		}
+
+		return res
+	}
+
+	function createTimelineNodes(data, className) {
+		console.log("Calling createTimelineNodes")
+		timelineGraph.append("g").selectAll("." + className)
+			.data(data)
+			.enter().append("rect")
+			.attr("class", function(d) {return className + " " + getClassNameForRect(d) + " " + getLevelAttr(d)})
+			.attr("x", function(d) {return x(d.start);})
+			.attr("y", function(d) {return y(d.lane + .5) - rectHeight/2;})
+			.attr("width", function(d) {return x(d.end) - x(d.start);})
+			.attr("height", rectHeight)
+			.attr("id", function(d) {return d.id})
+			.attr("name", function(d) {return getNodeName(d.name)})
+			.attr("vector-effect", "non-scaling-stroke") // from http://stackoverflow.com/questions/10357292/how-to-make-stroke-width-immune-to-the-current-transformation-matrix
+			.style("fill", getRectFill)
+			.on("click", selectNode)
+			.on("dblclick", dblClickHandler)
+	}
+
+	function createTimelineLabels(data, className) {
+		timelineGraph.append("g").selectAll("." + className)
+			.data(data)
+			.enter().append("text")
+			.text(getText)
+			.attr("x", function(d) {return (x(d.start) + x(d.end))/2;})
+			.attr("y", function(d) {return y(d.lane + .5);})
+			.attr("dy", ".5ex")
+			.attr("id", function(d) {return d.id + "-label"})
+			.attr("class", function(d) {return className + " timelineNodeName " + getLevelAttr(d)})
+			.on("click", selectNode)
+			.attr("text-anchor", "middle")
+	}
+
+	function filterNodesEligibleForLabels(tNodes) {
+		return tNodes.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel})
+	}
+
+	var stackOfHiddenNodes = Array()
+	function dblClickHandler(tNode) {
+		if (tNode.childNodes.length > 0) {
+			var isStackChanged = false
+			if ((tNode.parentId == -1) && (stackOfHiddenNodes.length > 0)) {
+				var selector = stackOfHiddenNodes[0][0]
+				$(selector).show()
+				$(selector + "-label").show()
+				stackOfHiddenNodes.length = 0 // clear the array
+				isStackChanged = true
+			}
+
+			var childNodes = tNode.childNodes.concat(tNode.syncNodes)
+			var rectSelector = "#" + d3.event.target.id
+			stackOfHiddenNodes.push([rectSelector, tNode])
+			$(rectSelector).hide()
+			$(rectSelector + "-label").hide()
+
+			$(".childNode").remove()
+			createTimelineNodes(childNodes, "childNode")
+
+			$(".childNodeLabel").remove()
+			createTimelineLabels(filterNodesEligibleForLabels(childNodes), "childNodeLabel")
+
+			isStackChanged = true
+		}
+
+		if (isStackChanged) updateHiddenNodeList()
+	}
+
+	function updateHiddenNodeList() {
+  		var sel = $("#timelineHiddenNodeList")
+  		for (var i = sel[0].options.length - 1; i >= 0; i--) sel[0].remove(i)
+  		if (stackOfHiddenNodes.length > 0) {
+	  		for (var i = stackOfHiddenNodes.length; i >= 0; i--) {
+	  			sel.append($("<option/>", {
+	  				value: i,
+	  				text: "Level " +i
+	  			}))
+	  		}
+  		}
+	}
+
+	function displayNode(tNode) {
+		var nodesToDisplay = []
+		if (tNode.parentId == -1) {
+			nodesToDisplay = [tNode]
+		} else {
+			nodesToDisplay = tNode.parent.childNodes
+		}
+
+		createTimelineNodes(nodesToDisplay, "childNode")
+		createTimelineLabels(filterNodesEligibleForLabels(nodesToDisplay), "childNodeLabel")
+	}
+
+	function timelineScopeSelHandler() {
+		$(".childNode").remove()
+		$(".childNodeLabel").remove()
+
+		var selectedLevel = parseInt($(this).val())
+		if (selectedLevel == 0) {
+			var rectSelector = stackOfHiddenNodes[selectedLevel][0]
+			$(rectSelector).show()
+			$(rectSelector + "-label").show()
+		} else {
+			var tNode = stackOfHiddenNodes[selectedLevel][1]
+	  		displayNode(tNode)
+  		}
+
+  		stackOfHiddenNodes.length = selectedLevel
+  		updateHiddenNodeList()
+	}
+
+	function getDisplayDataForNode(node) {
+		var data = [node.name,
+					node.target,
+					node.type,
+					node.num_of_runs,
+					node.time,
+					node.percentage_time,
+					"NA"]
+		return data
+	}
+
+	function getAppBeginAndEndTimes(items) {
+		var appNode = items.filter(function(n) {return n.name == "all"})[0]
+		return {"begin": appNode.start, "end": appNode.end, "duration": appNode.duration}
+	}
 
 	function getRectFill(d) {
 		if (config.syncNodeRegex.test(d.name)) {
@@ -182,14 +289,6 @@ function createTimeline(timelineDivClass, profileData, config) {
 		return name
 	}
 
-	function getOpacity(d) {
-		if (config.syncNodeRegex.test(d.name)) {
-			return 0.1
-		}
-
-		return 1.0
-	}
-
 	function getClassNameForRect(d) {
 		if (config.syncNodeRegex.test(d.name)) {
 			return "sync-node"
@@ -203,37 +302,37 @@ function createTimeline(timelineDivClass, profileData, config) {
 	}
 
 	function scroll(numPixels) {
-		console.log("Scrolling " + numPixels)
 		document.getElementsByClassName("timelineWrapper")[0].scrollLeft = numPixels
 	}
 
 	function hideNodes(selector) {
 		$(selector).hide()
-		//$(selector).css("fill-opacity", "0")
 	}
 
 	function showNodes(selector) {
 		$(selector).show()
-		//$(selector).css("fill-opacity", "1")
 	}
 
 	// NOTE: Performs horizontal zoom only
-	function zoom(scale) {
+	/*function zoom(scale) {
 		var t = "scale(" + scale + ", 1)"
 		d3.selectAll(".timingNode").attr("transform", t)
 		d3.selectAll(".sync-node").attr("transform", t)			
 		d3.selectAll(".timelineNodeName").attr("x", function(d) {return scale*((x(d.start) + x(d.end))/2);})
 		d3.select(".chart").attr("width", scale * chartWidth)
 		d3.selectAll(".laneLine").attr("x2", scale * chartWidth)
-		//scroll(scale * $(".timelineWrapper").scrollLeft())
-	}
+	}*/
 
-	function hideSyncNodes() {
-		$(".sync-node").hide()
-	}
+	function zoom(scale) {
+		x.range([scale * initialXRange[0], scale * initialXRange[1]])	
 
-	function showSyncNodes() {
-		$(".sync-node").show()
+		d3.selectAll(".timingNode, .sync-node")
+		  .attr("x", function(d) {return x(d.start)})
+		  .attr("width", function(d) {return x(d.end) - x(d.start);})
+
+		d3.selectAll(".timelineNodeName").attr("x", function(d) {return ((x(d.start) + x(d.end))/2);})
+		d3.select(".chart").attr("width", scale * chartWidth)
+		d3.selectAll(".laneLine").attr("x2", scale * chartWidth)
 	}
 
 	function highlightNodesByName(name) {
@@ -263,12 +362,12 @@ function createTimeline(timelineDivClass, profileData, config) {
 		this.hideNodes = hideNodes
 		this.showNodes = showNodes
 		this.zoom = zoom
-		this.hideSyncNodes = hideSyncNodes
-		this.showSyncNodes = showSyncNodes	
 		this.scroll = scroll
 		this.scrollToNode = scrollToNode
 		this.highlightNodesByName = highlightNodesByName
 		this.unhighlightNodesByName = unhighlightNodesByName
+		this.timelineScopeSelHandler = timelineScopeSelHandler
+		this.xScale = x
 	}
 
 	return new controller()
@@ -277,7 +376,7 @@ function createTimeline(timelineDivClass, profileData, config) {
 // Code for displaying tooltip tables
 
 /*
-var table = d3.select(timelineDivClass).append("table")
+var table = d3.select(parentDivId).append("table")
     .attr("class", "tooltip")
     .attr("position", "absolute")
     .style("opacity", 0);

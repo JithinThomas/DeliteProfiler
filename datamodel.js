@@ -2,13 +2,46 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     var perfProfile = rawProfileData.PerfProfile
     var numThreads = getNumberOfThreads(perfProfile)
     var dependencyData = getDependencyData(degFileNodes, numThreads)
-    var timelineData = getDataForTimelineView(perfProfile, dependencyData, config)
+    //var timelineData = getDataForTimelineView(perfProfile, dependencyData, config)
+    var timelineData = getDataForTimelineView(rawProfileData, dependencyData, config)
     updateTimeTakenByPartitionedKernels(dependencyData)
     updateSyncAndExecTimesOfKernels(timelineData.timing, dependencyData.maxNodeLevel)
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData)
     var threadLevelPerfStats = getThreadLevelPerfStats(timelineData, numThreads)
+    //var memUsageData = convertToStreamGraphFormat(rawProfileData.MemUsageSamples)
+    var memUsageData = convertToStreamGraphFormat(rawProfileData)
 
-    return {"dependencyData": dependencyData, "timelineData": timelineData, "threadLevelPerfStats": threadLevelPerfStats}
+    return {"dependencyData": dependencyData, 
+            "timelineData": timelineData, 
+            "threadLevelPerfStats": threadLevelPerfStats,
+            "memUsageData": memUsageData
+           }
+}
+
+function convertToStreamGraphFormat(rawProfileData) {
+    function addSampleToAggrRes(sample, timeStamp) {
+        sample.forEach(function (stat, i) {
+            data.push({key: statNames[i], value: stat, time: timeStamp})
+        })
+    }
+
+    var data = []
+    var rawSamples = rawProfileData.MemUsageSamples
+    var statNames = rawSamples["0"]
+    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart
+    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis
+
+    for (timeStamp in rawSamples) {
+        var t = parseInt(timeStamp)
+        if (t > 0) {
+            var sample = rawSamples[timeStamp]
+            // All 3 sets of data (ie, timeline, GCStats and MemUsage) are aligned to timestamps on this scale
+            correctedTimeStamp = (t - appStartTimeInMillis) + jvmUpTimeAtAppStart 
+            addSampleToAggrRes(sample, correctedTimeStamp)
+        }
+    }
+
+    return data
 }
 
 function updateMemUsageOfDNodes(memProfile, dependencyData) {
@@ -28,7 +61,7 @@ function updateMemUsageOfDNodes(memProfile, dependencyData) {
 }
 
 function getNumberOfThreads(perfProfile) {
-    return (perfProfile.location.filter(onlyUnique).length - 1)
+    return perfProfile.res.length - 1
 }
 
 function getDependencyData(degFileNodes, numThreads) {
@@ -65,32 +98,40 @@ function getDependencyData(degFileNodes, numThreads) {
     return {"nodes": nodes, "nodeNameToId": nodeNameToId, "maxNodeLevel": getMaxNodeLevel(nodes)}
 }
 
-function getDataForTimelineView(perfProfile, dependencyData, config) {
+function isValidKernel(n, nodeNameToId, config) {
+    return (config.syncNodeRegex.test(n) || (n in nodeNameToId))
+}
+
+//function getDataForTimelineView(perfProfile, dependencyData, config) {
+function getDataForTimelineView(rawProfileData, dependencyData, config) {
+    var perfProfile = rawProfileData.PerfProfile
+    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart
+    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis
+
     var nodes = dependencyData.nodes
     var nodeNameToId = dependencyData.nodeNameToId
     var dataForTimelineView = {}
     var syncNodes = []
+    var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config)
     var totalAppTime = 0
 
     var maxNodeLevel = dependencyData.maxNodeLevel
     for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
 
-    function isValidKernel(n) {
-        return (config.syncNodeRegex.test(n) || (n in nodeNameToId))
-    }
-
     for (var i in perfProfile.kernels) {
         var o = {}
         o["name"] = perfProfile.kernels[i]
-        if (isValidKernel(o.name)) {
+        if (isValidKernel(o.name, nodeNameToId, config)) {
             o["id"] = nodeNameToId[o.name]
             o["lane"] = perfProfile.location[i]
-            o["start"] = perfProfile.start[i]
+            //o["start"] = perfProfile.start[i]
+            o["start"] = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart
             o["duration"] = perfProfile.duration[i]
             o["end"] = o["start"] + o["duration"]
             o["node"] = nodes[o.id]
             o["level"] = getTNodeLevel(o)
-            o["displayText"] = getDisplayTextForTimelineNode(o.name)
+            //o["displayText"] = getDisplayTextForTimelineNode(o.name, config.syncNodeRegex)
+            o["displayText"] = getDisplayTextForTimelineNode(o, config.syncNodeRegex)
             o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.
             o["syncNodes"] = []
             o["parentId"] = -1
@@ -98,9 +139,9 @@ function getDataForTimelineView(perfProfile, dependencyData, config) {
             o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
             o["execTime"] = {"abs": NaN, "pct": NaN}
             o["syncTime"] = {"abs": NaN, "pct": NaN}
+            o["ticTocRegions"] = []
      
             if (!(config.syncNodeRegex.test(o.name))) {
-                //console.log(o)
                 nodes[o.id].time += o.duration
                 o.type = "execution"
                 addToMap(dataForTimelineView[o.level], o.name, o)
@@ -115,10 +156,93 @@ function getDataForTimelineView(perfProfile, dependencyData, config) {
         }
     }
 
-    assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes)
+    assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config)
     updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData)
+    assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel)
+    updateTicTocRegionsData(ticTocRegions, totalAppTime)
 
-    return {"timing": dataForTimelineView, "lanes": perfProfile.res, "totalAppTime": totalAppTime}
+    return {"timing": dataForTimelineView, "lanes": perfProfile.res, "totalAppTime": totalAppTime, "ticTocRegions": ticTocRegions}
+}
+
+function getTicTocRegions(perfProfile, nodeNameToId, config) {
+    var ticTocRegions = []
+    var kernels = perfProfile.kernels
+    var id = 0
+    for (var i in kernels) {
+        if (!(isValidKernel(kernels[i], nodeNameToId, config))) {
+            var o = {}
+            o["id"] = id++
+            o["name"] = perfProfile.kernels[i]
+            o["start"] = perfProfile.start[i]
+            o["duration"] = perfProfile.duration[i]
+            o["end"] = o["start"] + o["duration"]
+            o["percentage_time"] = 0 // % of the total app time
+            o["parent"] = null
+            o["childNodes"] = []
+            o["childToPerf"] = {} // maps each child node to abs_time and % of the region's time taken by the child
+            ticTocRegions.push(o)
+        }
+    }
+
+    ticTocRegions.sort(function(r1,r2) {return r2.duration - r1.duration})
+
+    return ticTocRegions
+}
+
+function assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel) {
+    var nodes = getExecutionTNodes(dataForTimelineView, maxNodeLevel)
+    nodes.forEach(function(n) {
+        var regions = findTicTocRegionsForTNode(n, ticTocRegions)
+        n.ticTocRegions = regions
+        regions.forEach(function(r) {
+            r.childNodes.push(n)
+        })
+    })
+}
+
+function getExecutionTNodes(dataForTimelineView, maxNodeLevel) {
+    var res = []
+    for (var i = maxNodeLevel; i >= 0; i--) {
+        var childNodes = dataForTimelineView[i]
+        for (cname in childNodes) {
+            var childRuns = childNodes[cname]
+            if ((childRuns.length > 0) && (childRuns[0].type == "execution")) {
+                res = res.concat(childRuns)
+            }
+        }
+    }
+
+    return res
+}
+
+function findTicTocRegionsForTNode(tNode, ticTocRegions) {
+    return ticTocRegions.filter(function(r) {return ((r.start <= tNode.start) && (tNode.end <= r.end))})
+}
+
+function updateTicTocRegionsData(ticTocRegions, totalAppTime) {
+    function incAbsTime(map, name, id, inc) {
+        if (!(name in map)) {
+            map[name] = {"id": id, "abs": 0, "pct": 0}
+        }
+
+        map[name].abs += inc
+    }
+
+    function computePct(map, durationOfRegion) {
+        for (k in map) {
+            var d = map[k]
+            d.pct = ((d.abs * 100) / durationOfRegion).toFixed(2)
+        }
+    }
+
+    ticTocRegions.forEach(function(r) {
+        r.percentage_time = ((r.duration * 100) / totalAppTime).toFixed(2)
+        r.childNodes.forEach(function(n) {
+            incAbsTime(r.childToPerf, n.name, n.id, n.duration)
+        })
+
+        computePct(r.childToPerf, r.duration)
+    })
 }
 
 function getMaxNodeLevel(nodes) {
@@ -165,6 +289,7 @@ function updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyD
                         if ((p.start <= n.start) && (n.end <= p.end)) {
                             p.childNodes.push(n)
                             n.parentId = p.id
+                            n.parent = p
                             break;
                         }
                     }
@@ -328,8 +453,8 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
                     parentId        : -1,  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
                     time            : 0,
                     percentage_time : 0,
-                    execTime        : {"abs": NaN, "pct": NaN},
-                    syncTime        : {"abs": NaN, "pct": NaN},
+                    execTime        : {"abs": null, "pct": null},
+                    syncTime        : {"abs": null, "pct": null},
                     sourceContext   : {},
                     runs            : [], // timing data for each time this node was executed in the app
                     memUsage        : 0, // in bytes
@@ -358,6 +483,8 @@ function createInternalNode(name, level) {
         type            : "InternalNode",
         condOps         : [],
         bodyOps         : [],
+        thenOps         : [],
+        elseOps         : [],
         componentNodes  : [],
         partitions      : [],   // For MultiLoop and WhileLoop nodes: the different partitions such as x234_1, 
                                             // x234_2, x234_h, etc. This data will be provided by the timing info
@@ -365,35 +492,37 @@ function createInternalNode(name, level) {
         parentId        : -1,  // -1 indicates top-level node. For child nodes, this field will be overwritten in assignNodeIds function
         time            : 0,
         percentage_time : 0,
-        execTime        : {"abs": NaN, "pct": NaN},
-        syncTime        : {"abs": NaN, "pct": NaN},
+        execTime        : {"abs": null, "pct": null},
+        syncTime        : {"abs": null, "pct": null},
         memUsage        : 0,
+        sourceContext   : {},
     }
 }
 
-function getDisplayTextForTimelineNode(name) {
-    var m = name.match(config.syncNodeRegex)
+function getDisplayTextForTimelineNode(tNode, syncNodeRegex) {
+    var m = tNode.name.match(syncNodeRegex)
     if (m) {
-        //return m[3] + "(T" + m[4] + ")"
         return ""
+    } else if (tNode.node) {
+        return tNode.node.sourceContext.opName
     } 
 
     return name
 }
 
-function assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes) {
+
+
+function assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config) {
     syncNodes.forEach(function(n) {
         var m = n.name.match(config.syncNodeRegex)
         var parentName = m[2]
-
         n.dep_kernel = m[3]
         n.dep_thread = "T" + m[4]
+
 
         if (parentName == "null") { // top-level sync barrier
             n.level = 0
         } else {
-            //console.log(parentName)
-            //console.log(dependencyData)
             var parentId = dependencyData.nodeNameToId[parentName]
             var parentLevel = dependencyData.nodes[parentId].level
             var parent = dataForTimelineView[parentLevel][parentName].filter(function(p) {
@@ -421,11 +550,12 @@ function createPartitionNodes(numNodes, parentName, level) {
 }
 
 function updateSourceContext(node, sc) {
-    var sourceContext = {"file": "", "line": 0}
+    var sourceContext = {"file": "", "line": 0, "opName": ""}
     if (sc) {
         var arr = sc.fileName.split("/")
         sourceContext.file = arr[arr.length - 1]
         sourceContext.line = parseInt(sc.line)
+        sourceContext.opName = sc.opName
     } else {
         console.log("WARNING: SourceContext info not available for kernel: " + ((node.name)))
     }
@@ -453,16 +583,20 @@ function assignNodeIds(nodes) {
         node.componentNodes.forEach(function(comp) {nodeNameToId[comp] = node.id}) 
     })
 
-    nextId = assignParentIdsToDNodes(nodes, nodeNameToId, nextId)
+    nextId = assignInheritedParentAttrsToDNodes(nodes, nodeNameToId, nextId)
 
     return nodeNameToId
 }
 
-function assignParentIdsToDNodes(nodes, nodeNameToId, nextId) {
+function assignInheritedParentAttrsToDNodes(nodes, nodeNameToId, nextId) {
     function helper(parent, childType) {
         parent[childType].forEach(function(n) {
             n.parentId = parent.id
             n.target = parent.target
+
+            if (n.type == "InternalNode") {
+                n.sourceContext = parent.sourceContext
+            }
         })
     }
 
@@ -474,8 +608,8 @@ function assignParentIdsToDNodes(nodes, nodeNameToId, nextId) {
             helper(node, "thenOps")
             helper(node, "elseOps")
 
-            nextId = assignParentIdsToDNodes(node.condOps, nodeNameToId, nextId)
-            nextId = assignParentIdsToDNodes(node.bodyOps, nodeNameToId, nextId)
+            nextId = assignInheritedParentAttrsToDNodes(node.condOps, nodeNameToId, nextId)
+            nextId = assignInheritedParentAttrsToDNodes(node.bodyOps, nodeNameToId, nextId)
     })
 
     return nextId
@@ -499,12 +633,6 @@ function getOrElse(obj, defaultObj) {
 
 function sum(arr) {
     return arr.reduce(function(a,b) {return a + b}, 0)
-}
-
-// helper function used to find unique values in a given array
-// obtained from http://stackoverflow.com/questions/1960473/unique-values-in-an-array
-function onlyUnique(value, index, self) { 
-    return self.indexOf(value) === index;
 }
 
 function max(a,b) {

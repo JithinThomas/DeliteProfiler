@@ -59,13 +59,12 @@ function createStackGraph(parentDivId, data, xScale) {
 		.append("rect")
 		.attr("class", "point")
 		.attr("x", function(d) { return x(d.time) - markerDimension/2}) // 'd' => a single data point within a given series
-		//.attr("y", function(d) { return y(d.y) - markerDimension/2})
 		.attr("y", function(d) { return y(d.y)})
 		.attr("width", markerDimension)
 		.attr("height", markerDimension)
 		.style("fill", "orange")
-		.on("mouseenter", function (d) { showPopover.call(this, d); })
-   		.on("mouseleave",  function (d) { removePopovers(); })
+		//.on("mouseenter", function (d) { showPopover.call(this, d); })
+   		//.on("mouseleave",  function (d) { removePopovers(); })
 
    	function removePopovers () {
 	  $('.popover').remove()

@@ -23,13 +23,16 @@ function appendRunView(evt) {
 		createRunDiv(divId, containerDivId);
 
 		data = JSON.parse(e.target.result)
-		tmp = {
-			"timelineData": getDataForTimelineView(data.Profile.PerfProfile, profData.dependencyData, config),
+		timelineDataModel = {
+			//"timelineData": getDataForTimelineView(data.Profile.PerfProfile, profData.dependencyData, config),
+			"timelineData": getDataForTimelineView(data.Profile, profData.dependencyData, config),
 			"dependencyData": profData.dependencyData,
 		};
 
-		//createTimeline("#" + getRunDivId(divId), tmp, config);
-		timeline = new TimelineGraph("-" + divId, "#" + getRunDivId(divId), tmp, "#" + getLevelSelectorId(divId) ,config);
+		var timelineElemsNameSuffix = "-" + divId;
+		var timelineParentDivId = "#" + getRunDivId(divId);
+		var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
+		var timeline = new TimelineGraph(timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
 		timeline.draw();
 
 		createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);

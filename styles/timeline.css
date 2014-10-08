@@ -29,7 +29,8 @@
 }
 
 .timelineWrapper {
-	overflow-x: auto;
+	/*overflow-x: auto;*/
+	overflow-x: inherit;
 	overflow-y: auto; 
 }
 

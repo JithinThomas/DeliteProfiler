@@ -15,6 +15,7 @@ TIMELINE_CHILDNODE_LABEL_CLASS_PREFIX = "childNodeLabel";
 
 LANE_COLORS = ["orange", "green", "lightskyblue", "red", "brown"];
 
+// 'classStr'   => This can be used to group select a subset of all the timeline views being displayed
 // 'nameSuffix'  => The name/id suffix to be used for all internally defined HTML classes/IDs
 // 'parentDivId' => The HTML id of the div that would hold the timeline graph
 // 'profileData' => The data model returned by the getProfileData() method defined in datamodel.js
@@ -22,7 +23,8 @@ LANE_COLORS = ["orange", "green", "lightskyblue", "red", "brown"];
 
 // TODO: The passing of 'timelineLevelSelectorId' as an input parameter is a hack. Instead, the TimelineGraph element
 // should trigger an event when a node is double-clicked and external elements should be able to listen to it.
-function TimelineGraph(nameSuffix, parentDivId, profileData, timelineLevelSelectorId, config) {
+function TimelineGraph(classStr, nameSuffix, parentDivId, profileData, timelineLevelSelectorId, config) {
+	this.classStr = classStr;
 	this.nameSuffix = nameSuffix;
 	this.parentDivId = parentDivId;
 	this.timelineData = profileData.timelineData;
@@ -86,7 +88,7 @@ TimelineGraph.prototype.draw = function() {
 	var div2 = d3.select(this.parentDivId)
 		.append("div")
 		.attr("float", "right")
-		.attr("class", TIMELINE_CONTAINER_ID_PREFIX)
+		.attr("class", TIMELINE_CONTAINER_ID_PREFIX + " " + this.classStr)
 		.attr("id", this.containerId);
 
 	$(toIdSelector(this.containerId)).css("width", "" + parentDiv.width() + "px")

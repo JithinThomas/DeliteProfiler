@@ -1,9 +1,17 @@
-#container {
+/*#container {
 	position: absolute;
 	width: 100%;
 	height: 100%;
 	overflow-x: hidden;
-	/*overflow-y: auto;*/
+	overflow-y: hidden;
+}*/
+
+.ui-tabs-panel {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
 }
 
 #sidebar {
@@ -46,35 +54,35 @@
   	display: none;
 }
 
-#timeline {
-	position: absolute;
-  	background: #DDD;
-  	width: 100%;
-  	height: 37%;
-  	/*top: 70%;*/
-  	top: 73%;
-}
-
-#memory {
-	position: absolute;
-	background: rgb(49, 130, 189);
-	width: 100%;
-	height: 20%;
-	top: 53%;
-	overflow-x: auto;
-	font-size: 10;
-	font-family: sans-serif;
-}
-
 #gcStats {
 	position: absolute;
 	background: #DDD;
 	width: 100%;
 	height: 3%;
 	top: 50%;
-	overflow-x: auto;
+	overflow-x: hidden;
 	font-size: 10;
 	font-family: sans-serif;
+}
+
+#memory {
+	position: absolute;
+	background: rgb(49, 130, 189);
+	width: 100%;
+	height: 15%;
+	top: 53%;
+	overflow-x: hidden;
+	font-size: 10;
+	font-family: sans-serif;
+}
+
+#timeline {
+	position: absolute;
+  	background: #DDD;
+  	width: 100%;
+  	height: 32%;
+  	top: 68%;
+  	overflow-x: auto;
 }
 
 #globalViewOptions {

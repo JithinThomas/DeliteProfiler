@@ -333,8 +333,8 @@ function startDebugSession() {
 
 		editor = createEditor("code")
   		profData = getProfileData(degOps, profileData.Profile, config)
-  		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-  		//graphController = {}
+  		//graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+  		graphController = {}
 
   		// This is the data to be visualized using bar charts
   		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)
@@ -347,7 +347,7 @@ function startDebugSession() {
 
       	//timelineController = createTimeline("#timeline", profData, config)
       	//timelineController = new TimelineGraph("-main", "#timeline", profData, config)
-      	timelineController = new TimelineGraph("-main", "#timeline", profData, "#timelineHiddenNodeList", config)
+      	timelineController = new TimelineGraph("mainTimeline", "-main", "#timeline", profData, "#timelineHiddenNodeList", config)
       	timelineController.draw();
   			
   		$("#timelineHiddenNodeList").change({
@@ -358,6 +358,7 @@ function startDebugSession() {
       	createGCStatsGraph("#gcStats", gcEvents, timelineController.xScale, config)
 
 		setUpSynchronizedScrolling();
+		lockScrollingOfComparisonRuns();
     } else {
     	alert("Please upload the DEG file and the profile data (profData.js) and retry");
     }
@@ -369,20 +370,13 @@ function setUpSynchronizedScrolling() {
 		$("#memory")[0].scrollLeft = tmp.scrollLeft;
 		$("#gcStats")[0].scrollLeft = tmp.scrollLeft;
 	});
+}
 
-	/*
-	$("#memory").on("scroll", function() {
-		var tmp = $("#memory")[0];
-		$("#timelineWrapper-main")[0].scrollLeft = tmp.scrollLeft;
-		$("#gcStats")[0].scrollLeft = tmp.scrollLeft;
+function lockScrollingOfComparisonRuns() {
+	$("#viewRunsDiv").on("scroll", function() {
+		var scrollAmt = $("viewRunsDiv")[0].scrollLeft;
+		$(".comp-timeline").scrollLeft(scrollAmt);
 	});
-
-	$("#gcStats").on("scroll", function() {
-		var tmp = $("#gcStats")[0];
-		$("#timelineWrapper-main")[0].scrollLeft = tmp.scrollLeft;
-		$("#memory")[0].scrollLeft = tmp.scrollLeft;
-	});
-	*/
 }
 
 function searchNode(nodeName) {

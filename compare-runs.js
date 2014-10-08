@@ -29,10 +29,11 @@ function appendRunView(evt) {
 			"dependencyData": profData.dependencyData,
 		};
 
+		var timelineClassStr = "comp-timeline";
 		var timelineElemsNameSuffix = "-" + divId;
 		var timelineParentDivId = "#" + getRunDivId(divId);
 		var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
-		var timeline = new TimelineGraph(timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
+		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
 		timeline.draw();
 
 		createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);

@@ -333,8 +333,8 @@ function startDebugSession() {
 
 		editor = createEditor("code")
   		profData = getProfileData(degOps, profileData.Profile, config)
-  		//graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-  		graphController = {}
+  		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+  		//graphController = {}
 
   		// This is the data to be visualized using bar charts
   		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)

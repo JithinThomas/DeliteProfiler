@@ -267,8 +267,10 @@ function populateKernelInfoTable(node) {
 	}
 
 	var nodeType = getEffectiveNodeType(node)
-	var timeInMs = (node.time/1000).toFixed(0)
-	var timeStr = timeInMs + "ms (" + node.percentage_time.toFixed(0) + "%)"
+	//var timeInMs = (node.time/1000).toFixed(0)
+	//var timeStr = timeInMs + "ms (" + node.percentage_time.toFixed(0) + "%)"
+	var timeInSecs = (node.time/1000).toFixed(0)
+	var timeStr = timeInSecs + "s (" + node.percentage_time.toFixed(0) + "%)"
 	var execTimePct = helper(node.execTime.pct)
 	var syncTimePct = helper(node.syncTime.pct)
 	var memUsage = node.memUsage + " B"
@@ -345,8 +347,6 @@ function startDebugSession() {
   			syncTimePct: o.syncTime.pct
   		}})
 
-      	//timelineController = createTimeline("#timeline", profData, config)
-      	//timelineController = new TimelineGraph("-main", "#timeline", profData, config)
       	timelineController = new TimelineGraph("mainTimeline", "-main", "#timeline", profData, "#timelineHiddenNodeList", config)
       	timelineController.draw();
   			
@@ -358,7 +358,7 @@ function startDebugSession() {
       	createGCStatsGraph("#gcStats", gcEvents, timelineController.xScale, config)
 
 		setUpSynchronizedScrolling();
-		lockScrollingOfComparisonRuns();
+		//lockScrollingOfComparisonRuns();
     } else {
     	alert("Please upload the DEG file and the profile data (profData.js) and retry");
     }
@@ -390,7 +390,12 @@ function searchNode(nodeName) {
 	graphController.markNeighbors(nodeId)
 }
 
+$(window).resize(function() {
+	$("#right").css("width", $("#container").width() - $("#accordian").width());
+	//$("#panel-1").css("height", $(window).height());
+});
+
 $(document).ready(function () {
-	$("#right").css("width", $("#container").width() - $("#accordian").width())
-	$("#dfg").css("height", $("#dfg").height() - $("#dfgHeader").height())
-})
+	$("#right").css("width", $("#container").width() - $("#accordian").width());
+	$("#dfg").css("height", $("#dfg").height() - $("#dfgHeader").height());
+});

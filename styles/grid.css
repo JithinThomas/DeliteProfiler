@@ -6,7 +6,8 @@
 	overflow-y: hidden;
 }*/
 
-.ui-tabs-panel {
+/*.ui-tabs-panel {*/
+#container {
 	position: absolute;
 	width: 100%;
 	height: 100%;

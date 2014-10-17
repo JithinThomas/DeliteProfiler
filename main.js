@@ -115,7 +115,7 @@ $('#timelineZoom').keyup(function(event){
 
 $('#searchKernel').keyup(function(event){
     if(event.keyCode == 13){
-        searchNode($(this).val())
+        searchNode($(this).val().trim())
     }
 })
 

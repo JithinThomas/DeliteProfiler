@@ -24,7 +24,6 @@ function appendRunView(evt) {
 
 		data = JSON.parse(e.target.result)
 		timelineDataModel = {
-			//"timelineData": getDataForTimelineView(data.Profile.PerfProfile, profData.dependencyData, config),
 			"timelineData": getDataForTimelineView(data.Profile, profData.dependencyData, config),
 			"dependencyData": profData.dependencyData,
 		};
@@ -111,3 +110,43 @@ function getLevelSelectorId(i) {
 }
 
 // =================================================
+
+/*
+function addRunViews(evt) {
+	var files = evt.target.files;
+	for (var i = 0; i < files.length; i++) {
+		var file = files[i];
+		readFile(file);
+	}
+}
+
+function readFile(file) {
+	var reader = new FileReader();
+	var fileName = file.name;
+	reader.onload = function(e) {
+    	createHeaderDiv(divId, containerDivId);
+		$("#" + getHeaderDivId(divId)).append(dataFileName);
+		createCloseButton(divId, "#" + getHeaderDivId(divId));
+		createRunDiv(divId, containerDivId);
+
+		data = JSON.parse(e.target.result)
+		timelineDataModel = {
+			"timelineData": getDataForTimelineView(data.Profile, profData.dependencyData, config),
+			"dependencyData": profData.dependencyData,
+		};
+
+		var timelineClassStr = "comp-timeline";
+		var timelineElemsNameSuffix = "-" + divId;
+		var timelineParentDivId = "#" + getRunDivId(divId);
+		var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
+		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
+		timeline.draw();
+
+		createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);
+
+		divId++;
+    };
+
+    reader.readAsText(file);
+}
+*/

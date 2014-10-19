@@ -27,7 +27,9 @@ function TimelineGraph(classStr, nameSuffix, parentDivId, profileData, timelineL
 	this.classStr = classStr;
 	this.nameSuffix = nameSuffix;
 	this.parentDivId = parentDivId;
-	this.timelineData = profileData.timelineData;
+	//this.timelineData = profileData.timelineData;
+	this.executionSummary = profileData.executionProfile.executionSummary;
+	this.timelineData = profileData.executionProfile.timelineData;
 	this.dependencyData = profileData.dependencyData;
 	this.timelineLevelSelectorId = timelineLevelSelectorId;
 	this.config = config;
@@ -129,7 +131,8 @@ TimelineGraph.prototype.draw = function() {
 	this.createTimelineNodes(items, this.timelineNodeClass);
 
 	//timeline labels
-	var minDurationReqForDisplayingLabel = 0.05 * this.timelineData.totalAppTime;
+	//var minDurationReqForDisplayingLabel = 0.05 * this.timelineData.totalAppTime;
+	var minDurationReqForDisplayingLabel = 0.05 * this.executionSummary.totalAppTime;
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel});
 	this.createTimelineLabels(eventsWithLabel, this.timelineNodeLabelClass);
 };

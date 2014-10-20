@@ -220,6 +220,7 @@ TimelineGraph.prototype.getRectFill = function(d) {
 	return this.laneColors[d.lane];
 };
 
+/*
 TimelineGraph.prototype.timelineNodeClickHandler = function(d) {
 	if (d.type == "sync") {
 		this.config.populateSyncNodeInfoTable(d);
@@ -238,6 +239,40 @@ TimelineGraph.prototype.timelineNodeClickHandler = function(d) {
 		}
 
 		var sc = n.sourceContext;
+		this.config.highlightLineInEditor(sc.file, sc.line);
+	}
+};
+*/
+
+/*
+TimelineGraph.prototype.timelineNodeClickHandler = function(d) {
+	if (d.type == "sync") {
+		this.config.populateSyncNodeInfoTable(d);
+	} else if (d.type == "execution") {
+		var n = this.dependencyData.nodes[d.id];
+		this.config.populateKernelInfoTable(n);
+		this.config.markGraphNode(d.id);
+		this.config.markNeighborsOnGraph(d.id);
+
+		var sc = n.sourceContext;
+		this.config.highlightLineInEditor(sc.file, sc.line);
+	}
+};
+*/
+
+TimelineGraph.prototype.timelineNodeClickHandler = function(tNode) {
+	var nodeType = tNode.type;
+	if (nodeType == "sync") {
+		this.config.populateSyncNodeInfoTable(tNode);
+	} else if (nodeType == "execution") {
+		//var n = this.dependencyData.nodes[d.id];
+		//this.config.populateKernelInfoTable(n);
+		this.config.populateKernelInfoTable(tNode);
+		this.config.markGraphNode(tNode.id);
+		this.config.markNeighborsOnGraph(tNode.id);
+
+		var dNode = this.dependencyData.nodes[tNode.id];
+		var sc = dNode.sourceContext;
 		this.config.highlightLineInEditor(sc.file, sc.line);
 	}
 };

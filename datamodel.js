@@ -191,8 +191,9 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
             o["end"] = o["start"] + o["duration"]
             //o["node"] = nodes[o.id]
             o["node"] = getDNodeCorrespondingToTNode(o, dependencyData, config)
+            o["id"] = (o.node) ? o.node.id : undefined;
             //o["id"] = o.node.id
-            o["level"] = getTNodeLevel(o)
+            o["level"] = getTNodeLevel(o);
             //o["level"] = getTNodeLevel(o, dependencyData, config)
             o["displayText"] = getDisplayTextForTimelineNode(o, config.syncNodeRegex)
             o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.

@@ -251,34 +251,32 @@ function highlightLineInEditorByKernelId(nodeId) {
 	highlightLineInEditor(sc.file, sc.line)
 }
 
-function populateKernelInfoTable(node) {
+function populateKernelInfoTable(tNode) {
 	function helper(num) {
-		if (num) return num.toFixed(0)
+		if (num != undefined) return num.toFixed(0)
 		return "NA"
-	} 
+	};
 
-	function getEffectiveNodeType(n) {
-		if (n.type == "InternalNode") {
-			var parent = profData.dependencyData.nodes[n.parentId]
-			return parent.type
-		}
+	function getEffectiveNodeType(tn) {
+		return profData.dependencyData.nodes[tn.id].type;
+	};
 
-		return n.type
-	}
+	var dNode = profData.dependencyData.nodes[tNode.id];
+	var nodeType = dNode.type;
+	var target = dNode.target;
+	var summary = profData.executionProfile.executionSummary.summaryOf(tNode.name);
+	
+	var timeInSecs = (summary.totalTime.abs / 1000).toFixed(0);
+	var timeStr = timeInSecs + "s (" + summary.totalTime.pct.toFixed(0) + "%)";
+	var execTimePct = helper(summary.execTime.pct);
+	var syncTimePct = helper(summary.syncTime.pct);
+	var memUsage = summary.memUsage + " B";
 
-	var nodeType = getEffectiveNodeType(node)
-	//var timeInMs = (node.time/1000).toFixed(0)
-	//var timeStr = timeInMs + "ms (" + node.percentage_time.toFixed(0) + "%)"
-	var timeInSecs = (node.time/1000).toFixed(0)
-	var timeStr = timeInSecs + "s (" + node.percentage_time.toFixed(0) + "%)"
-	var execTimePct = helper(node.execTime.pct)
-	var syncTimePct = helper(node.syncTime.pct)
-	var memUsage = node.memUsage + " B"
-	var values = [node.name, nodeType, node.target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage]
-	var table = $("#kernelInfoTable")[0]
+	var values = [tNode.name, nodeType, target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage];
+	var table = $("#kernelInfoTable")[0];
 	values.forEach(function(v, i) {
-		var row = table.rows[i + 1]
-		row.cells[1].innerHTML = values[i]
+		var row = table.rows[i + 1];
+		row.cells[1].innerHTML = values[i];
 	})
 }
 
@@ -335,8 +333,8 @@ function startDebugSession() {
 
 		editor = createEditor("code")
   		profData = getProfileData(degOps, profileData.Profile, config)
-  		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-  		//graphController = {}
+  		//graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+  		graphController = {}
 
   		// This is the data to be visualized using bar charts
   		topNodesBasedOnTime = getTopNodes(profData.dependencyData.nodes, "percentage_time", 20)

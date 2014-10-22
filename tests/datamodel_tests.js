@@ -92,7 +92,6 @@ test('Test_1 => Overall profile data processing', function() {
 function toTotalTimeStats(expectedTotalTimes) {
 	var totalTimeStats = {};
 	var totalAppTime = expectedTotalTimes["all"];
-	console.log(totalAppTime);
 	for (var nodeName in expectedTotalTimes) {
 		var stats = {};
 		stats.abs = expectedTotalTimes[nodeName];

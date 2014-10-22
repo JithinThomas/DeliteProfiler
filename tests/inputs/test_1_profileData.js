@@ -1,4 +1,9 @@
 test_1_profile = {"Profile":{
+  "Init": {
+    "SystemNanoTimeAtAppStart": 8882042065878555,
+    "JVMUpTimeAtAppStart": 0,
+    "AppStartTimeInMillis": 0
+  },
   "PerfProfile": {
     "res": ["T0", "T1", "T2"],
     "kernels": ["x0", "x4", "__sync-ExecutionThread-0-x2_0-x3-1", "x6", "x7", "__sync-ExecutionThread-0-x5_0-x8-1", "x9", "__sync-ExecutionThread-1-null-x0-0", "x1", "x3", "__sync-ExecutionThread-1-x2_1-x6-0", "x8", "__sync-ExecutionThread-1-x5_1-x9-0", "x10", "x2_0", "x2_1", "x5_0", "x5_1", "all", "Region A", "Region B", "Region C"],

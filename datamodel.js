@@ -3,14 +3,11 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     var perfProfile = rawProfileData.PerfProfile;
     var numThreads = getNumberOfThreads(perfProfile);
     var dependencyData = getDependencyData(degFileNodes, numThreads);
-
-    //var timelineData = getDataForTimelineView(rawProfileData, dependencyData, config, executionProfile);
     var executionProfile = getExecutionProfile(rawProfileData, dependencyData, config);
     var executionSummary = executionProfile.executionSummary;
 
     updateTimeTakenByPartitionedKernels(dependencyData, executionSummary);
     updateSyncAndExecTimesOfKernels(executionProfile.timelineData.timing, dependencyData.maxNodeLevel, executionSummary);
-    //updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData);
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionSummary, config);
     var threadLevelPerfStats = getThreadLevelPerfStats(executionProfile.timelineData, numThreads);
 
@@ -18,7 +15,6 @@ function getProfileData(degFileNodes, rawProfileData, config) {
     executionSummary.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.
 
     return {"dependencyData": dependencyData, 
-            //"timelineData": timelineData, 
             "threadLevelPerfStats": threadLevelPerfStats,
             "memUsageData": memUsageData,
             "executionProfile": executionProfile
@@ -164,7 +160,10 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
 
     var nodes = dependencyData.nodes
     var nodeNameToId = dependencyData.nodeNameToId
+    
     var executionSummary = new ExecutionSummary();
+    executionSummary.numThreads = getNumberOfThreads(perfProfile);
+
     var dataForTimelineView = {}
     var syncNodes = []
     var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config)
@@ -226,12 +225,13 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData)
     assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel)
     updateTicTocRegionsData(ticTocRegions, totalAppTime)
+    executionSummary.ticTocRegions = ticTocRegions;
 
     //return {"timing": dataForTimelineView, "lanes": perfProfile.res, "totalAppTime": totalAppTime, "ticTocRegions": ticTocRegions}
     var timelineData = {
         "timing"        : dataForTimelineView,
         "lanes"         : perfProfile.res,
-        "ticTocRegions" : ticTocRegions
+        //"ticTocRegions" : ticTocRegions
     }
 
     return {"timelineData": timelineData, "executionSummary": executionSummary}
@@ -336,7 +336,7 @@ function getTNodeLevel(n) {
 // For partition nodes like x123_1, it returns the parent loop's dNode, ie, x123 in the case of x123_1
 function getDNodeCorrespondingToTNode(tNode, dependencyData, config) {
     var id = dependencyData.nodeNameToId[tNode.name];
-    if (id) {
+    if (id != undefined) {
         return dependencyData.nodes[id];
     }
 
@@ -446,26 +446,18 @@ function isLoopNode(dNode) {
             (dNode.type == "WhileLoop"));
 }
 
-function getMaxTimeAmongParitions(executionSummary, nodeName) {
-    if (isLoopNode(nodeName)) {
+
+
+function updateTimeTakenByPartitionedKernels(dependencyData, executionSummary) {
+    function getMaxTimeAmongParitions(executionSummary, nodeName) {
         var maxTime = 0;
         for (var i = 0; i < executionSummary.numThreads; i++) {
             var partitionName = nodeName + "_" + i;
-            var timeTakenByPartition = executionProfile.totalTime(partitionName).abs;
+            var timeTakenByPartition = executionSummary.totalTime(partitionName).abs;
             maxTime = (timeTakenByPartition > maxTime) ? timeTakenByPartition : maxTime;
         }
 
         return maxTime;
-    }
-
-    return executionSummary.totalTime(nodeName).abs;
-}
-
-function updateTimeTakenByPartitionedKernels(dependencyData, executionSummary) {
-    function nodeWithMaxTime(a,b) {
-        var tmp = max(a.time, b.time)
-        if (tmp == a.time) { return a }
-        else { return b }
     }
 
     dependencyData.nodes.forEach(function (dNode) {

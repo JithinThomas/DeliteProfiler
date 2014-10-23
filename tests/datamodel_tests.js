@@ -5,12 +5,6 @@ test('Test_1 => Overall profile data processing', function() {
 	var config = configObject();
 	var actualDependencyData = getDependencyData(test_1_deg.DEG.ops, 2);
 	var actualExecutionProfile = getExecutionProfile(test_1_profile.Profile, actualDependencyData, config);
-	var executionSummary = actualExecutionProfile.executionSummary;
-
-	// TODO: The order of these next two calls is important. This needs to be abstracted away by the datamodel API
-	updateTimeTakenByPartitionedKernels(actualDependencyData, executionSummary);
-	executionSummary.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.
-
 	var expectedDependencyData = test_1_dependencyData;
 	var expectedTimelineData = test_1_timelineData;
 
@@ -77,16 +71,29 @@ test('Test_1 => Overall profile data processing', function() {
 		"x8"  : 250,
 		"x9"  : 300,
 		"x10" : 20,
+		"all" : 1020
+		/*
 		"Region A" : 200,
 		"Region B" : 300,
 		"Region C" : 800,
-		"all" : 1020
+		
+		*/
 	}
 
 	var expectedTotalTimeStats = toTotalTimeStats(expectedTotalTimes);
-	testTotalTimeStats(actualExecutionProfile.executionSummary.nodeNameToSummary, expectedTotalTimeStats);
+	testTotalTimeStats(actualExecutionProfile.nodeNameToSummary, expectedTotalTimeStats);
 
-	testTotalAppTime(actualExecutionProfile.executionSummary);
+	testTotalAppTime(actualExecutionProfile);
+
+	var expectedTicTocTimes = {
+		"Region A" : 200,
+		"Region B" : 300,
+		"Region C" : 800,
+		"all"	   : 1020
+	}
+
+	var expectedTicTocStats = toTicTocStats(expectedTicTocTimes);
+	testTicTocStats(actualExecutionProfile.ticTocRegions, expectedTicTocStats);
 })
 
 function toTotalTimeStats(expectedTotalTimes) {
@@ -111,8 +118,31 @@ function testTotalTimeStats(actualExecutionSummary, expectedTotalTimeStats) {
 	}
 }
 
-function testTotalAppTime(executionSummary) {
-	equal(executionSummary.totalAppTime, executionSummary.nodeNameToSummary["all"].totalTime.abs, "nodeNameToSummary['all'] == executionSummary.totalAppTime");
+function testTotalAppTime(executionProfile) {
+	equal(executionProfile.totalAppTime, executionProfile.nodeNameToSummary["all"].totalTime.abs, "nodeNameToSummary['all'] == executionProfile.totalAppTime");
+}
+
+function toTicTocStats(expectedTicTocTimes) {
+	var totalAppTime = expectedTicTocTimes["all"];
+	var stats = {};
+
+	for (var ticTocRegionName in expectedTicTocTimes) {
+		var abs = expectedTicTocTimes[ticTocRegionName];
+		var pct = (abs * 100) / totalAppTime;
+		stats[ticTocRegionName] = {"abs": abs, "pct": pct};
+	}
+
+	return stats;
+}
+
+function testTicTocStats(actualTicTocStats, expectedTicTocStats) {
+	for (var i in actualTicTocStats) {
+		var actualStats = actualTicTocStats[i];
+		var expectedStats = expectedTicTocStats[actualStats.name];
+
+		equal(actualStats.totalTime.abs, expectedStats.abs, "Comparing absolute time of tic-toc region '" + actualStats.name + "'")
+		equal(actualStats.totalTime.pct.toFixed(2), expectedStats.pct.toFixed(2), "Comparing percentage time of tic-toc region '" + actualStats.name + "'")
+	}
 }
 
 function testNameToIdMappingOfDNodes(dependencyData) {
@@ -199,24 +229,6 @@ function getDNodeByName(name, dependencyData) {
 	return dependencyData.nodes[id]
 }
 
-// Tmp functions
-function removeCircularDeps(timelineData) {
-	var data = timelineData.timing
-	for (level in data) {
-		var nodeNameToTNodes = data[level]
-		for (node in nodeNameToTNodes) {
-			var runs = nodeNameToTNodes[node]
-			runs.forEach(function(r) {
-				r.ticTocRegions = r.ticTocRegions.map(function(r) {return {name: r.name, id: r.id }})
-			})
-		}
-	}
-
-	timelineData.ticTocRegions.forEach(function(r) {
-		r.childNodes = r.childNodes.map(function(n) {return {id: n.id, name: n.name}})
-	})
-}
-
 function configObject() {
 	return {
 		syncNodeRegex : /__sync-ExecutionThread-(\d+)-(.*)-(.*)-(\d+)$/,
@@ -234,15 +246,3 @@ function createChildNodeMapping(bodyOps, condOps, thenOps, elseOps, componentNod
 		"componentNodes" : componentNodes
 	}
 }
-
-/*
-function testDNodePerfStats(actualDepData, expectedDepData) {
-	actualDepData.nodes.forEach(function(n) {
-		var expectedNode = getDNodeByName(n.name, expectedDepData)
-		equal(n.time, expectedNode.time, "Total node times match: " + n.name)
-		equal(n.percentage_time.toFixed(2), expectedNode.percentage_time.toFixed(2), "Node percentage_time match: " + n.name)
-		deepEqual(n.execTime, expectedNode.execTime, "Exec time stats match: " + n.name)
-		deepEqual(n.syncTime, expectedNode.syncTime, "Sync time stats match: " + n.name)
-	})
-}
-*/

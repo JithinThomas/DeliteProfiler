@@ -1,24 +1,12 @@
 
 function getProfileData(degFileNodes, rawProfileData, config) {
-    var perfProfile = rawProfileData.PerfProfile;
-    var numThreads = getNumberOfThreads(perfProfile);
-    var dependencyData = getDependencyData(degFileNodes, numThreads);
+    var dependencyData = getDependencyData(degFileNodes);
     var executionProfile = getExecutionProfile(rawProfileData, dependencyData, config);
-    var executionSummary = executionProfile.executionSummary;
 
-    updateTimeTakenByPartitionedKernels(dependencyData, executionSummary);
-    updateSyncAndExecTimesOfKernels(executionProfile.timelineData.timing, dependencyData.maxNodeLevel, executionSummary);
-    updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionSummary, config);
-    var threadLevelPerfStats = getThreadLevelPerfStats(executionProfile.timelineData, numThreads);
-
-    var memUsageData = convertToStreamGraphFormat(rawProfileData);
-    executionSummary.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.
-
-    return {"dependencyData": dependencyData, 
-            "threadLevelPerfStats": threadLevelPerfStats,
-            "memUsageData": memUsageData,
-            "executionProfile": executionProfile
-           };
+    return {
+        "dependencyData": dependencyData, 
+        "executionProfile": executionProfile
+   };
 }
 
 function convertToStreamGraphFormat(rawProfileData) {
@@ -62,13 +50,13 @@ function updateMemUsageOfDNodes(memProfile, dependencyData, executionProfile, co
 }
 
 function getNumberOfThreads(perfProfile) {
-    return perfProfile.res.length - 1
+    return perfProfile.res.length - 1;
 }
 
-function getDependencyData(degFileNodes, numThreads) {
+function getDependencyData(degFileNodes) {
     var nodes = []
     for (i in degFileNodes) {
-        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i], 0, numThreads)
+        var newNodes = initializeNodeDataFromDegFile(degFileNodes[i], 0)
         for (j in newNodes) {
             var node = newNodes[j]
             nodes.push(node)
@@ -122,81 +110,96 @@ function getNameOfParentLoop(nodeName, config) {
     return "";
 }
 
+// TODO: This is too long a function! Refactor it!
+// This function does two major distinct tasks: 
+//  (i) Build the data required for the timeline view
+//  (ii) Compute other stats (eg: aggregate stats per node, etc.)
 function getExecutionProfile(rawProfileData, dependencyData, config) {
-    var perfProfile = rawProfileData.PerfProfile
-    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart
-    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis
+    var perfProfile = rawProfileData.PerfProfile;
+    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart;
+    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis;
 
-    var nodes = dependencyData.nodes
-    var nodeNameToId = dependencyData.nodeNameToId
+    var nodes = dependencyData.nodes;
+    var nodeNameToId = dependencyData.nodeNameToId;
     
-    var executionSummary = new ExecutionSummary();
-    executionSummary.numThreads = getNumberOfThreads(perfProfile);
+    var executionProfile = new ExecutionProfile();
+    executionProfile.numThreads = getNumberOfThreads(perfProfile);
 
-    var dataForTimelineView = {}
-    var syncNodes = []
-    var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config)
-    var totalAppTime = 0
+    var dataForTimelineView = {};
+    var syncNodes = [];
+    var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config);
 
-    var maxNodeLevel = dependencyData.maxNodeLevel
+    var totalAppTime = 0;
+
+    var maxNodeLevel = dependencyData.maxNodeLevel;
     for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
 
     for (var i in perfProfile.kernels) {
         var o = {};
         o["name"] = perfProfile.kernels[i];
-        executionSummary.tryAddNode(o.name);
+        executionProfile.tryAddNode(o.name);
 
         if (isPartitionNode(o.name, config)) {
             var parentName = getNameOfParentLoop(o.name, config);
-            executionSummary.tryAddNode(parentName);
+            executionProfile.tryAddNode(parentName);
         }
 
         if ((isValidKernel(o.name, nodeNameToId, config)) || (o.name == "all")) {
-            o["lane"] = perfProfile.location[i]
-            o["start"] = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart
-            o["duration"] = perfProfile.duration[i]
-            o["end"] = o["start"] + o["duration"]
-            o["node"] = getDNodeCorrespondingToTNode(o, dependencyData, config)
+            o["lane"] = perfProfile.location[i];
+            o["start"] = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
+            o["duration"] = perfProfile.duration[i];
+            o["end"] = o["start"] + o["duration"];
+            o["node"] = getDNodeCorrespondingToTNode(o, dependencyData, config);
             o["id"] = (o.node) ? o.node.id : undefined;
             o["level"] = getTNodeLevel(o);
-            o["displayText"] = getDisplayTextForTimelineNode(o, config.syncNodeRegex)
-            o["childNodes"] = [] // important for nested nodes such as WhileLoop, IfThenElse, etc.
-            o["syncNodes"] = []
-            o["parentId"] = -1
-            o["dep_thread"] = "" // important for sync nodes - specifies the thread the sync was expecting a result from
-            o["dep_kernel"] = "" // important for sync nodes - specifies the kernel the sync was expecting to complete
-            o["execTime"] = {"abs": NaN, "pct": NaN}
-            o["syncTime"] = {"abs": NaN, "pct": NaN}
+            o["displayText"] = getDisplayTextForTimelineNode(o, config.syncNodeRegex);
+            o["childNodes"] = []; // important for nested nodes such as WhileLoop, IfThenElse, etc.
+            o["syncNodes"] = [];
+            o["parentId"] = -1;
+            o["dep_thread"] = ""; // important for sync nodes - specifies the thread the sync was expecting a result from
+            o["dep_kernel"] = ""; // important for sync nodes - specifies the kernel the sync was expecting to complete
+            o["execTime"] = {"abs": undefined, "pct": undefined};
+            o["syncTime"] = {"abs": undefined, "pct": undefined};
             o["ticTocRegions"] = []
      
             if (!(config.syncNodeRegex.test(o.name))) {
-                o.type = "execution"
-                addToMap(dataForTimelineView[o.level], o.name, o)
-                executionSummary.incrementTotalTime(o.name, o.duration);
+                o.type = "execution";
+                addToMap(dataForTimelineView[o.level], o.name, o);
+                executionProfile.incrementTotalTime(o.name, o.duration);
             } else {
-                o.type = "sync"
-                syncNodes.push(o)
+                o.type = "sync";
+                syncNodes.push(o);
             }
 
             if (o.name == "all") {
-                totalAppTime = o.duration
-                executionSummary.setTotalAppTime(o.duration);
+                totalAppTime = o.duration;
+                executionProfile.setTotalAppTime(o.duration);
             }
         }
     }
 
-    assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config)
-    updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData)
-    assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel)
-    updateTicTocRegionsData(ticTocRegions, totalAppTime)
-    executionSummary.ticTocRegions = ticTocRegions;
+    assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config);
+    updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData);
+    assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel);
 
     var timelineData = {
         "timing"        : dataForTimelineView,
         "lanes"         : perfProfile.res,
-    }
+    };
 
-    return {"timelineData": timelineData, "executionSummary": executionSummary}
+    updateTicTocRegionsData(ticTocRegions, totalAppTime);
+    executionProfile.ticTocRegions = ticTocRegions;
+
+    updateTimeTakenByPartitionedKernels(dependencyData, executionProfile);
+    updateSyncAndExecTimesOfKernels(dataForTimelineView, dependencyData.maxNodeLevel, executionProfile);
+    updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionProfile, config);
+    
+    executionProfile.threadLevelPerfStats = getThreadLevelPerfStats(timelineData, executionProfile);
+    executionProfile.memUsageData = convertToStreamGraphFormat(rawProfileData);
+    executionProfile.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.
+    executionProfile.timelineData = timelineData;
+    
+    return executionProfile;
 }
 
 function getTicTocRegions(perfProfile, nodeNameToId, config) {
@@ -209,9 +212,8 @@ function getTicTocRegions(perfProfile, nodeNameToId, config) {
             o["id"] = id++
             o["name"] = perfProfile.kernels[i]
             o["start"] = perfProfile.start[i]
-            o["duration"] = perfProfile.duration[i]
-            o["end"] = o["start"] + o["duration"]
-            o["percentage_time"] = 0 // % of the total app time
+            o["totalTime"] = new Time(perfProfile.duration[i], 0);
+            o["end"] = o.start + o.totalTime.abs
             o["parent"] = null
             o["childNodes"] = []
             o["childToPerf"] = {} // maps each child node to abs_time and % of the region's time taken by the child
@@ -219,7 +221,8 @@ function getTicTocRegions(perfProfile, nodeNameToId, config) {
         }
     }
 
-    ticTocRegions.sort(function(r1,r2) {return r2.duration - r1.duration})
+    //ticTocRegions.sort(function(r1,r2) {return r2.duration - r1.duration})
+    ticTocRegions.sort(function(r1,r2) {return r2.totalTime.abs - r1.totalTime.abs})
 
     return ticTocRegions
 }
@@ -271,12 +274,13 @@ function updateTicTocRegionsData(ticTocRegions, totalAppTime) {
     }
 
     ticTocRegions.forEach(function(r) {
-        r.percentage_time = ((r.duration * 100) / totalAppTime).toFixed(2)
+        var duration = r.totalTime.abs;
+        r.totalTime.pct = parseFloat(((duration * 100) / totalAppTime).toFixed(2))
         r.childNodes.forEach(function(n) {
             incAbsTime(r.childToPerf, n.name, n.id, n.duration)
         })
 
-        computePct(r.childToPerf, r.duration)
+        computePct(r.childToPerf, duration)
     })
 }
 
@@ -367,12 +371,12 @@ function isLoopNode(dNode) {
 
 
 
-function updateTimeTakenByPartitionedKernels(dependencyData, executionSummary) {
-    function getMaxTimeAmongParitions(executionSummary, nodeName) {
+function updateTimeTakenByPartitionedKernels(dependencyData, executionProfile) {
+    function getMaxTimeAmongParitions(executionProfile, nodeName) {
         var maxTime = 0;
-        for (var i = 0; i < executionSummary.numThreads; i++) {
+        for (var i = 0; i < executionProfile.numThreads; i++) {
             var partitionName = nodeName + "_" + i;
-            var timeTakenByPartition = executionSummary.totalTime(partitionName).abs;
+            var timeTakenByPartition = executionProfile.totalTime(partitionName).abs;
             maxTime = (timeTakenByPartition > maxTime) ? timeTakenByPartition : maxTime;
         }
 
@@ -382,16 +386,18 @@ function updateTimeTakenByPartitionedKernels(dependencyData, executionSummary) {
     dependencyData.nodes.forEach(function (dNode) {
         if(isLoopNode(dNode)) {
             var headerNodeName = dNode.name + "_h";
-            var headerTime = executionSummary.totalTime(headerNodeName).abs;
-            var maxTimeAmongParitions = getMaxTimeAmongParitions(executionSummary, dNode.name);
+            var headerTime = executionProfile.totalTime(headerNodeName).abs;
+            var maxTimeAmongParitions = getMaxTimeAmongParitions(executionProfile, dNode.name);
             var totalTime = headerTime + maxTimeAmongParitions;
-            executionSummary.setTotalTime(dNode.name, totalTime);
+            executionProfile.setTotalTime(dNode.name, totalTime);
         }
     })
 }
 
-function getThreadLevelPerfStats(timelineData, numThreads) {
+function getThreadLevelPerfStats(timelineData, executionProfile) {
+    var numThreads = executionProfile.numThreads;
     var threadToData = []
+
     for (var i = 0; i < numThreads; i++) {
         threadToData[i] = {"execTime": {"abs": 0, "pct": 0},
                            "syncTime": {"abs": 0, "pct": 0}}
@@ -418,17 +424,17 @@ function getThreadLevelPerfStats(timelineData, numThreads) {
         }
     }
 
-    var appTime = timelineData.totalAppTime
+    var totalAppTime = executionProfile.totalAppTime;
     for (var i = 0; i < numThreads; i++) {
         var td = threadToData[i]
-        td.execTime.pct = ((td.execTime.abs * 100) / appTime).toFixed(2)
-        td.syncTime.pct = ((td.syncTime.abs * 100) / appTime).toFixed(2)
+        td.execTime.pct = ((td.execTime.abs * 100) / totalAppTime).toFixed(2)
+        td.syncTime.pct = ((td.syncTime.abs * 100) / totalAppTime).toFixed(2)
     }
 
     return threadToData
 }
 
-function updateSyncAndExecTimesOfKernels(dataForTimelineView, maxNodeLevel, executionSummary) {
+function updateSyncAndExecTimesOfKernels(dataForTimelineView, maxNodeLevel, executionProfile) {
     for (var l = maxNodeLevel; l >= 0; l--) {
         var runs = dataForTimelineView[l]
         for (tNodeName in runs) {
@@ -451,12 +457,12 @@ function updateSyncAndExecTimesOfKernels(dataForTimelineView, maxNodeLevel, exec
                 totalSyncTime += syncTime
             })
 
-            executionSummary.setSyncTime(tNodes[0].name, totalSyncTime);
+            executionProfile.setSyncTime(tNodes[0].name, totalSyncTime);
         }
     }
 }
 
-function initializeNodeDataFromDegFile(node, level, numThreads) {
+function initializeNodeDataFromDegFile(node, level) {
     var nodeType = node.type
     var res = []
     var condOpsData = [] // for 'WhileLoop' nodes
@@ -470,7 +476,7 @@ function initializeNodeDataFromDegFile(node, level, numThreads) {
         var res = []
         if (childNodes) {
             childNodes.forEach(function(cn) {
-                res = res.concat(initializeNodeDataFromDegFile(cn, level + 1, numThreads))
+                res = res.concat(initializeNodeDataFromDegFile(cn, level + 1))
             })
         }
 

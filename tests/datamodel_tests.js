@@ -72,12 +72,6 @@ test('Test_1 => Overall profile data processing', function() {
 		"x9"  : 300,
 		"x10" : 20,
 		"all" : 1020
-		/*
-		"Region A" : 200,
-		"Region B" : 300,
-		"Region C" : 800,
-		
-		*/
 	}
 
 	var expectedTotalTimeStats = toTotalTimeStats(expectedTotalTimes);

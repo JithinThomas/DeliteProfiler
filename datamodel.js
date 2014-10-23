@@ -116,8 +116,7 @@ function getNameOfParentLoop(nodeName, config) {
 //  (ii) Compute other stats (eg: aggregate stats per node, etc.)
 function getExecutionProfile(rawProfileData, dependencyData, config) {
     var perfProfile = rawProfileData.PerfProfile;
-    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart;
-    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis;
+    
 
     var nodes = dependencyData.nodes;
     var nodeNameToId = dependencyData.nodeNameToId;
@@ -129,10 +128,11 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     var syncNodes = [];
     var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config);
 
-    var totalAppTime = 0;
-
     var maxNodeLevel = dependencyData.maxNodeLevel;
     for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
+
+    var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart;
+    var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis;
 
     for (var i in perfProfile.kernels) {
         var o = {};
@@ -172,7 +172,6 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
             }
 
             if (o.name == "all") {
-                totalAppTime = o.duration;
                 executionProfile.setTotalAppTime(o.duration);
             }
         }
@@ -182,18 +181,18 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData);
     assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel);
 
-    var timelineData = {
-        "timing"        : dataForTimelineView,
-        "lanes"         : perfProfile.res,
-    };
-
-    updateTicTocRegionsData(ticTocRegions, totalAppTime);
+    updateTicTocRegionsData(ticTocRegions, executionProfile.totalAppTime);
     executionProfile.ticTocRegions = ticTocRegions;
 
     updateTimeTakenByPartitionedKernels(dependencyData, executionProfile);
     updateSyncAndExecTimesOfKernels(dataForTimelineView, dependencyData.maxNodeLevel, executionProfile);
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionProfile, config);
     
+    var timelineData = {
+        "timing"        : dataForTimelineView,
+        "lanes"         : perfProfile.res,
+    };
+
     executionProfile.threadLevelPerfStats = getThreadLevelPerfStats(timelineData, executionProfile);
     executionProfile.memUsageData = convertToStreamGraphFormat(rawProfileData);
     executionProfile.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.

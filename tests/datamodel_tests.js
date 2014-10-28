@@ -8,7 +8,7 @@ test('Test_1 => Overall profile data processing', function() {
 	var expectedDependencyData = test_1_dependencyData;
 	var expectedTimelineData = test_1_timelineData;
 
-	testNameToIdMappingOfDNodes(actualDependencyData);
+	console.log(actualExecutionProfile)
 
 	var expectedDNodeLevels = {
 		"x0"  : 0,
@@ -24,8 +24,6 @@ test('Test_1 => Overall profile data processing', function() {
 		"x10" : 2
 	};
 
-	testDNodeLevels(actualDependencyData, expectedDNodeLevels);
-
 	var expectedChildNodeMapping = {
 		"x0"  : createChildNodeMapping([], [], [], [], []),
 		"x1"  : createChildNodeMapping([], [], [], [], []),
@@ -39,9 +37,6 @@ test('Test_1 => Overall profile data processing', function() {
 		"x9"  : createChildNodeMapping([], [], [], [], []),
 		"x10" : createChildNodeMapping([], [], [], [], []),
 	}
-
-	testChildNodeDataOfDNodes(actualDependencyData, expectedChildNodeMapping);
-	testInOutCountsOfDNodes(actualDependencyData.nodes);
 
 	var expectedParentNames = {
 		"x0"  : "",
@@ -57,15 +52,17 @@ test('Test_1 => Overall profile data processing', function() {
 		"x10" : "x5"
 	}
 
-	testParentNamesOfDNodes(actualDependencyData, expectedParentNames);
-
 	var expectedTotalTimes = {
 		"x0"  : 100,
 		"x1"  : 100,
 		"x2"  : 900,
+		"x2_0": 900,
+		"x2_1": 820,
 		"x3"  : 200,
 		"x4"  : 100,
 		"x5"  : 570,
+		"x5_0": 550,
+		"x5_1": 570,
 		"x6"  : 50,
 		"x7"  : 150,
 		"x8"  : 250,
@@ -73,11 +70,7 @@ test('Test_1 => Overall profile data processing', function() {
 		"x10" : 20,
 		"all" : 1020
 	}
-
 	var expectedTotalTimeStats = toTotalTimeStats(expectedTotalTimes);
-	testTotalTimeStats(actualExecutionProfile.nodeNameToSummary, expectedTotalTimeStats);
-
-	testTotalAppTime(actualExecutionProfile);
 
 	var expectedTicTocTimes = {
 		"Region A" : 200,
@@ -85,8 +78,15 @@ test('Test_1 => Overall profile data processing', function() {
 		"Region C" : 800,
 		"all"	   : 1020
 	}
-
 	var expectedTicTocStats = toTicTocStats(expectedTicTocTimes);
+
+	testNameToIdMappingOfDNodes(actualDependencyData);
+	testDNodeLevels(actualDependencyData, expectedDNodeLevels);
+	testChildNodeDataOfDNodes(actualDependencyData, expectedChildNodeMapping);
+	testInOutCountsOfDNodes(actualDependencyData.nodes);
+	testParentNamesOfDNodes(actualDependencyData, expectedParentNames);
+	testTotalTimeStats(actualExecutionProfile.nodeNameToSummary, expectedTotalTimeStats);
+	testTotalAppTime(actualExecutionProfile);
 	testTicTocStats(actualExecutionProfile.ticTocRegions, expectedTicTocStats);
 })
 

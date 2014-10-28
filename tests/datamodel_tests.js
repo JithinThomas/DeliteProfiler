@@ -5,10 +5,6 @@ test('Test_1 => Overall profile data processing', function() {
 	var config = configObject();
 	var actualDependencyData = getDependencyData(test_1_deg.DEG.ops, 2);
 	var actualExecutionProfile = getExecutionProfile(test_1_profile.Profile, actualDependencyData, config);
-	var expectedDependencyData = test_1_dependencyData;
-	var expectedTimelineData = test_1_timelineData;
-
-	console.log(actualExecutionProfile)
 
 	var expectedDNodeLevels = {
 		"x0"  : 0,

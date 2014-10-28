@@ -76,14 +76,43 @@ test('Test_1 => Overall profile data processing', function() {
 	}
 	var expectedTicTocStats = toTicTocStats(expectedTicTocTimes);
 
+	var expectedMemUsageStats = {
+		"x0"   : 120,
+		"x1"   : 50,
+		"x2"   : 110,
+		"x2_0" : 80,
+		"x2_1" : 30,
+		"x3"   : 40,
+		"x4"   : 0,
+		"x5"   : 1320,
+		"x5_0" : 320,
+		"x5_1" : 1000,
+		"x6"   : 0,
+		"x7"   : 200,
+		"x8"   : 0,
+		"x9"   : 300,
+		"x10"  : 0
+	}
+
+	console.log(actualExecutionProfile)
+
 	testNameToIdMappingOfDNodes(actualDependencyData);
+
 	testDNodeLevels(actualDependencyData, expectedDNodeLevels);
+
 	testChildNodeDataOfDNodes(actualDependencyData, expectedChildNodeMapping);
+
 	testInOutCountsOfDNodes(actualDependencyData.nodes);
+
 	testParentNamesOfDNodes(actualDependencyData, expectedParentNames);
+
 	testTotalTimeStats(actualExecutionProfile.nodeNameToSummary, expectedTotalTimeStats);
+
 	testTotalAppTime(actualExecutionProfile);
+
 	testTicTocStats(actualExecutionProfile.ticTocRegions, expectedTicTocStats);
+
+	testPerNodeMemUsageStats(actualExecutionProfile, expectedMemUsageStats);
 })
 
 function toTotalTimeStats(expectedTotalTimes) {
@@ -163,12 +192,21 @@ function testChildNodeDataOfDNodes(actualDepData, expectedChildNodeMapping) {
 
 	actualDepData.nodes.forEach(function(n) {
 		var expectedChildNodes = expectedChildNodeMapping[n.name];
-		helper(n, expectedChildNodes, "bodyOps")
-		helper(n, expectedChildNodes, "condOps")
-		helper(n, expectedChildNodes, "thenOps")
-		helper(n, expectedChildNodes, "elseOps")
-		helper(n, expectedChildNodes, "componentNodes")
+		helper(n, expectedChildNodes, "bodyOps");
+		helper(n, expectedChildNodes, "condOps");
+		helper(n, expectedChildNodes, "thenOps");
+		helper(n, expectedChildNodes, "elseOps");
+		helper(n, expectedChildNodes, "componentNodes");
 	})
+}
+
+function testPerNodeMemUsageStats(actualExecutionProfile, expectedMemUsageStats) {
+	var nodeNameToSummary = actualExecutionProfile.nodeNameToSummary
+	for (nodeName in expectedMemUsageStats) {
+		var expectedMemUsage = expectedMemUsageStats[nodeName];
+		var actualMemUsage = nodeNameToSummary[nodeName].memUsage;
+		equal(actualMemUsage, expectedMemUsage, "Verifying memUsage stat for node '" + nodeName + "'");
+	}
 }
 
 // 'expectedDeps'

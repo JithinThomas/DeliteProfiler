@@ -15,11 +15,13 @@
 	  	<link rel="stylesheet" type="text/css" href="styles/table.css">
 		<link rel="stylesheet" type="text/css" href="styles/tab-view.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/compare-runs.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/c3.css">
 
 	  	<div id="tabs">
 			<ul>
 				<li><a href="#panel-1">Overview</a></li>
-				<li><a href="#panel-2">Compare runs</a></li>
+				<li><a href="#panel-2">Compare timelines</a></li>
+				<li><a href="#panel-3">Compare run summaries</a></li>
 			</ul>
 			<div id="panel-1" class="ui-tabs">
 			  	<div id="container" class="ui-tabs-panel">
@@ -199,6 +201,13 @@
 					<div id="viewRunsDiv"></div>
 				</div>
 			</div>
+			<div id="panel-3" class="ui-tabs">
+				<div id="containerRunSummaries" class="ui-tabs-panel">
+					<input type="button" id="uploadRunSummaries" value="Upload run summaries" onclick="document.getElementById('_uploadRunSummaries').click();" />
+					<input type="file" id="_uploadRunSummaries" name="files[]" style="display: none;" multiple/>
+					<button id="initializeViews">View data</button>
+				</div>
+			</div>
 		</div>
 
 		<!-- external libraries -->
@@ -206,6 +215,7 @@
 		<script type="text/javascript" src="lib/jquery-ui-1.11.0/jquery-ui.min.js"></script>
 	    <script type="text/javascript" src="lib/ace.js" charset="utf-8"></script>
 	    <script type="text/javascript" src="lib/d3.min.js"></script>
+	    <script type="text/javascript" src="lib/c3.min.js"></script>
 	    <script type="text/javascript" src="lib/highlight.pack.js"></script>
         <script type="text/javascript" src="lib/cola.v1.min.js"></script>
         <script type="text/javascript" src="lib/graphlib-dot.min.js"></script>
@@ -225,6 +235,7 @@
         <script type="text/javascript" src="gcStats-graph.js"></script>
         <script type="text/javascript" src="table.js"></script>
         <script type="text/javascript" src="compare-runs.js"></script>
+        <script type="text/javascript" src="compare-run-summaries.js"></script>
         <script type="text/javascript" src="main.js"></script>
 
 		<script type="text/javascript">

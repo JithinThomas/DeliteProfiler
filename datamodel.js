@@ -97,15 +97,17 @@ function isValidKernel(nodeName, nodeNameToId, config) {
 }
 
 function isPartitionNode(nodeName, config) {
-    var m = nodeName.match(config.re_partition);
-    return (m != undefined);
+    var m1 = nodeName.match(config.re_partition);
+    var m2 = nodeName.match(config.re_header);
+    return ((m1 != undefined) || (m2 != undefined));
 }
 
 function getNameOfParentLoop(nodeName, config) {
     var match = nodeName.match(config.re_partition);
-    if (match) {
-        return match[1];
-    }
+    if (match) { return match[1]; }
+
+    match = nodeName.match(config.re_header);
+    if (match) { return match[1] }
 
     return "";
 }

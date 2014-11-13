@@ -127,7 +127,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
 
     var dataForTimelineView = {};
     var syncNodes = [];
-    var ticTocRegions = getTicTocRegions(perfProfile, nodeNameToId, config);
+    var ticTocRegions = [];
 
     var maxNodeLevel = dependencyData.maxNodeLevel;
     for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
@@ -136,6 +136,10 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis;
 
     for (var i in perfProfile.kernels) {
+        var name = perfProfile.kernels[i];
+        var start = perfProfile.start[i];
+        var duration = perfProfile.duration[i];
+
         var o = {};
         o["name"] = perfProfile.kernels[i];
         executionProfile.tryAddNode(o.name);
@@ -171,8 +175,13 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
                 o.type = "sync";
                 syncNodes.push(o);
             }
-        } else if (o.name == "all") {
-            executionProfile.setTotalAppTime(perfProfile.duration[i]);
+        } else {
+            var region = new TicTocRegion(name, start, duration, executionProfile.numThreads);
+            ticTocRegions.push(region);
+
+            if (name == "all") {
+                executionProfile.setTotalAppTime(perfProfile.duration[i]);
+            }
         }
     }
 
@@ -199,43 +208,6 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     executionProfile.timelineData = timelineData;
     
     return executionProfile;
-}
-
-function getTicTocRegions(perfProfile, nodeNameToId, config) {
-    function helper(numThreads) {
-        var tidToTime = {};
-        for (var tid = 0; tid < numThreads; tid++) {
-            tidToTime[tid] = new Time(0, 0);
-        }
-
-        return tidToTime;
-    }
-
-    var ticTocRegions = [];
-    var kernels = perfProfile.kernels;
-    var numThreads = getNumberOfThreads(perfProfile);
-    var id = 0;
-
-    for (var i in kernels) {
-        if (!(isValidKernel(kernels[i], nodeNameToId, config))) {
-            var o = {};
-            o.id = id++;
-            o.name = perfProfile.kernels[i];
-            o.start = perfProfile.start[i];
-            o.totalTime = new Time(perfProfile.duration[i], 0);
-            o.end = o.start + o.totalTime.abs;
-            o.parent = null;
-            o.childNodes = [];
-            o.childToPerf = {}; // maps each child node to abs_time and % of the region's time taken by the child
-            o.execTimeStats = helper(numThreads);
-            o.syncTimeStats = helper(numThreads);
-            ticTocRegions.push(o);
-        }
-    }
-
-    ticTocRegions.sort(function(r1,r2) {return r2.totalTime.abs - r1.totalTime.abs})
-
-    return ticTocRegions
 }
 
 function assignTNodesToTicTocRegions(tNodes, ticTocRegions) {   

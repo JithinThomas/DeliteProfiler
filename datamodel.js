@@ -119,7 +119,6 @@ function getNameOfParentLoop(nodeName, config) {
 function getExecutionProfile(rawProfileData, dependencyData, config) {
     var perfProfile = rawProfileData.PerfProfile;
     
-
     var nodes = dependencyData.nodes;
     var nodeNameToId = dependencyData.nodeNameToId;
     
@@ -146,7 +145,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
             executionProfile.tryAddNode(parentName);
         }
 
-        if ((isValidKernel(o.name, nodeNameToId, config)) || (o.name == "all")) {
+        if (isValidKernel(o.name, nodeNameToId, config)) {
             o["lane"] = perfProfile.location[i];
             o["start"] = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
             o["duration"] = perfProfile.duration[i];
@@ -172,23 +171,22 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
                 o.type = "sync";
                 syncNodes.push(o);
             }
-
-            if (o.name == "all") {
-                executionProfile.setTotalAppTime(o.duration);
-            }
+        } else if (o.name == "all") {
+            executionProfile.setTotalAppTime(perfProfile.duration[i]);
         }
     }
 
     assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config);
     updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData);
-    assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel);
-
-    updateTicTocRegionsData(ticTocRegions, executionProfile.totalAppTime);
-    executionProfile.ticTocRegions = ticTocRegions;
+    var topLevelTNodes = getTopLevelTNodes(dataForTimelineView);
+    assignTNodesToTicTocRegions(topLevelTNodes, ticTocRegions);
 
     updateTimeTakenByPartitionedKernels(dependencyData, executionProfile);
     updateSyncAndExecTimesOfKernels(dataForTimelineView, dependencyData.maxNodeLevel, executionProfile);
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionProfile, config);
+
+    updateTicTocRegionsData(ticTocRegions, executionProfile.totalAppTime);
+    executionProfile.ticTocRegions = ticTocRegions;
     
     var timelineData = {
         "timing"        : dataForTimelineView,
@@ -204,54 +202,67 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
 }
 
 function getTicTocRegions(perfProfile, nodeNameToId, config) {
-    var ticTocRegions = []
-    var kernels = perfProfile.kernels
-    var id = 0
+    function helper(numThreads) {
+        var tidToTime = {};
+        for (var tid = 0; tid < numThreads; tid++) {
+            tidToTime[tid] = new Time(0, 0);
+        }
+
+        return tidToTime;
+    }
+
+    var ticTocRegions = [];
+    var kernels = perfProfile.kernels;
+    var numThreads = getNumberOfThreads(perfProfile);
+    var id = 0;
+
     for (var i in kernels) {
         if (!(isValidKernel(kernels[i], nodeNameToId, config))) {
-            var o = {}
-            o["id"] = id++
-            o["name"] = perfProfile.kernels[i]
-            o["start"] = perfProfile.start[i]
-            o["totalTime"] = new Time(perfProfile.duration[i], 0);
-            o["end"] = o.start + o.totalTime.abs
-            o["parent"] = null
-            o["childNodes"] = []
-            o["childToPerf"] = {} // maps each child node to abs_time and % of the region's time taken by the child
-            ticTocRegions.push(o)
+            var o = {};
+            o.id = id++;
+            o.name = perfProfile.kernels[i];
+            o.start = perfProfile.start[i];
+            o.totalTime = new Time(perfProfile.duration[i], 0);
+            o.end = o.start + o.totalTime.abs;
+            o.parent = null;
+            o.childNodes = [];
+            o.childToPerf = {}; // maps each child node to abs_time and % of the region's time taken by the child
+            o.execTimeStats = helper(numThreads);
+            o.syncTimeStats = helper(numThreads);
+            ticTocRegions.push(o);
         }
     }
 
-    //ticTocRegions.sort(function(r1,r2) {return r2.duration - r1.duration})
     ticTocRegions.sort(function(r1,r2) {return r2.totalTime.abs - r1.totalTime.abs})
 
     return ticTocRegions
 }
 
-function assignTNodesToTicTocRegions(dataForTimelineView, ticTocRegions, maxNodeLevel) {
-    var nodes = getExecutionTNodes(dataForTimelineView, maxNodeLevel)
-    nodes.forEach(function(n) {
-        var regions = findTicTocRegionsForTNode(n, ticTocRegions)
-        n.ticTocRegions = regions
-        regions.forEach(function(r) {
-            r.childNodes.push(n)
-        })
-    })
-}
-
-function getExecutionTNodes(dataForTimelineView, maxNodeLevel) {
-    var res = []
-    for (var i = maxNodeLevel; i >= 0; i--) {
-        var childNodes = dataForTimelineView[i]
-        for (cname in childNodes) {
-            var childRuns = childNodes[cname]
-            if ((childRuns.length > 0) && (childRuns[0].type == "execution")) {
-                res = res.concat(childRuns)
+function assignTNodesToTicTocRegions(tNodes, ticTocRegions) {   
+    for (var i in ticTocRegions) {
+        var region = ticTocRegions[i];
+        for (var j in tNodes) {
+            var tNode = tNodes[j];
+            if ((region.start <= tNode.start) && (tNode.end <= region.end)) {
+                tNode.ticTocRegions.push(region);
+                region.childNodes.push(tNode);
+            } else if ( ((region.start <= tNode.start) && (tNode.start < region.end)) ||
+                        ((tNode.start <= region.start) && (region.start < tNode.end)) ) {
+                assignTNodesToTicTocRegions(tNode.childNodes, [region]);
+                assignTNodesToTicTocRegions(tNode.syncNodes, [region]);
             }
         }
     }
+}
 
-    return res
+function getTopLevelTNodes(dataForTimelineView) {
+    var res = [];
+    var topLevelNodes = dataForTimelineView[0];
+    for (name in topLevelNodes) {
+        res = res.concat(topLevelNodes[name]);
+    }
+
+    return res;
 }
 
 function findTicTocRegionsForTNode(tNode, ticTocRegions) {
@@ -279,9 +290,20 @@ function updateTicTocRegionsData(ticTocRegions, totalAppTime) {
         r.totalTime.pct = parseFloat(((duration * 100) / totalAppTime).toFixed(2))
         r.childNodes.forEach(function(n) {
             incAbsTime(r.childToPerf, n.name, n.id, n.duration)
+            if (n.type == "execution") {
+                r.execTimeStats[n.lane].abs += n.execTime.abs;
+                r.syncTimeStats[n.lane].abs += n.syncTime.abs;
+            } else if (n.type == "sync") {
+                r.syncTimeStats[n.lane].abs += n.duration;
+            }
         })
 
         computePct(r.childToPerf, duration)
+
+        for (tid in r.execTimeStats) {
+            r.execTimeStats[tid].pct = (r.execTimeStats[tid].abs * 100) / r.totalTime.abs;
+            r.syncTimeStats[tid].pct = (r.syncTimeStats[tid].abs * 100) / r.totalTime.abs;
+        }
     })
 }
 

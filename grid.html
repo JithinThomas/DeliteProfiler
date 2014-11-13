@@ -15,6 +15,7 @@
 	  	<link rel="stylesheet" type="text/css" href="styles/table.css">
 		<link rel="stylesheet" type="text/css" href="styles/tab-view.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/compare-runs.css">
+	  	<link rel="stylesheet" type="text/css" href="styles/compare-run-summaries.css">
 	  	<link rel="stylesheet" type="text/css" href="styles/c3.css">
 
 	  	<div id="tabs">
@@ -203,9 +204,20 @@
 			</div>
 			<div id="panel-3" class="ui-tabs">
 				<div id="containerRunSummaries" class="ui-tabs-panel">
-					<input type="button" id="uploadRunSummaries" value="Upload run summaries" onclick="document.getElementById('_uploadRunSummaries').click();" />
-					<input type="file" id="_uploadRunSummaries" name="files[]" style="display: none;" multiple/>
-					<button id="initializeViews">View data</button>
+					<div id="compareRunSummariesHeader">
+						<input type="button" id="uploadRunSummariesBtn" value="Upload run summaries" onclick="document.getElementById('_uploadRunSummariesBtn').click();" />
+						<input type="file" id="_uploadRunSummariesBtn" name="files[]" style="display: none;" multiple/>
+						<button id="initializeViewsBtn">View data</button>
+						<select id="compareRunSummariesMetricOptions">
+							<option value="totalTime">Total time</option>
+							<option value="execTime">Exec time</option>
+							<option value="syncTime">Sync time</option>
+						</select>
+						<label for="compareRunSummariesMetricOptions" id="compareRunSummariesMetricOptionsLabel">Metric</label>
+					</div>
+					<div id="compareRunSummariesDiv">
+
+					</div>
 				</div>
 			</div>
 		</div>

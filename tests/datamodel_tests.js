@@ -5,6 +5,7 @@ test('Test_1 => Overall profile data processing', function() {
 	var config = configObject();
 	var actualDependencyData = getDependencyData(test_1_deg.DEG.ops, 2);
 	var actualExecutionProfile = getExecutionProfile(test_1_profile.Profile, actualDependencyData, config);
+	console.log(actualExecutionProfile)
 
 	var expectedDNodeLevels = {
 		"x0"  : 0,
@@ -68,13 +69,66 @@ test('Test_1 => Overall profile data processing', function() {
 	}
 	var expectedTotalTimeStats = toTotalTimeStats(expectedTotalTimes);
 
+	/*
 	var expectedTicTocTimes = {
 		"Region A" : 200,
 		"Region B" : 300,
 		"Region C" : 800,
 		"all"	   : 1020
 	}
-	var expectedTicTocStats = toTicTocStats(expectedTicTocTimes);
+	var expectedTicTocTotalTimeStats = toTicTocStats(expectedTicTocTimes);
+	*/
+
+	var expectedTicTocStatsRaw = {
+		"all" : {
+			"totalTime" : 1020,
+			"execTime"  : {
+				0 : 700,
+				1 : 570 
+			},
+			"syncTime" : {
+				0 : 300,
+				1 : 450
+			}
+		},
+
+		"Region A" : {
+			"totalTime" : 200,
+			"execTime"  : {
+				0 : 200,
+				1 : 100 
+			},
+			"syncTime" : {
+				0 : 0,
+				1 : 100
+			}
+		},
+
+		"Region B" : {
+			"totalTime" : 300,
+			"execTime"  : {
+				0 : 200,
+				1 : 250 
+			},
+			"syncTime" : {
+				0 : 100,
+				1 : 50
+			}
+		},
+
+		"Region C" : {
+			"totalTime" : 800,
+			"execTime"  : {
+				0 : 500,
+				1 : 450 
+			},
+			"syncTime" : {
+				0 : 300,
+				1 : 350
+			}
+		}
+	}
+	var expectedTicTocStats = toTicTocStats(expectedTicTocStatsRaw, 1020, 2);
 
 	var expectedMemUsageStats = {
 		"x0"   : 120,
@@ -94,8 +148,6 @@ test('Test_1 => Overall profile data processing', function() {
 		"x10"  : 0
 	}
 
-	console.log(actualExecutionProfile)
-
 	testNameToIdMappingOfDNodes(actualDependencyData);
 
 	testDNodeLevels(actualDependencyData, expectedDNodeLevels);
@@ -108,8 +160,9 @@ test('Test_1 => Overall profile data processing', function() {
 
 	testTotalTimeStats(actualExecutionProfile.nodeNameToSummary, expectedTotalTimeStats);
 
-	testTotalAppTime(actualExecutionProfile);
+	testTotalAppTime(actualExecutionProfile, 1020);
 
+	//testTicTocStats(actualExecutionProfile.ticTocRegions, expectedTicTocTotalTimeStats);
 	testTicTocStats(actualExecutionProfile.ticTocRegions, expectedTicTocStats);
 
 	testPerNodeMemUsageStats(actualExecutionProfile, expectedMemUsageStats);
@@ -130,17 +183,58 @@ function toTotalTimeStats(expectedTotalTimes) {
 
 function testTotalTimeStats(actualExecutionSummary, expectedTotalTimeStats) {
 	for (var nodeName in expectedTotalTimeStats) {
-		var expectedStats = expectedTotalTimeStats[nodeName];
-		var summary = actualExecutionSummary[nodeName];
-		equal(summary.totalTime.abs, expectedStats.abs, "Absolute value of totalTime matches for node '" + nodeName + "'");
-		equal(summary.totalTime.pct.toFixed(0), expectedStats.pct.toFixed(0), "Percentage value of totalTime matches for node '" + nodeName + "'");
+		if (nodeName != "all") {
+			var expectedStats = expectedTotalTimeStats[nodeName];
+			var summary = actualExecutionSummary[nodeName];
+			equal(summary.totalTime.abs, expectedStats.abs, "Absolute value of totalTime matches for node '" + nodeName + "'");
+			equal(summary.totalTime.pct.toFixed(0), expectedStats.pct.toFixed(0), "Percentage value of totalTime matches for node '" + nodeName + "'");
+		}
 	}
 }
 
-function testTotalAppTime(executionProfile) {
-	equal(executionProfile.totalAppTime, executionProfile.nodeNameToSummary["all"].totalTime.abs, "nodeNameToSummary['all'] == executionProfile.totalAppTime");
+function testTotalAppTime(executionProfile, expectedTime) {
+	//equal(executionProfile.totalAppTime, executionProfile.nodeNameToSummary["all"].totalTime.abs, "nodeNameToSummary['all'] == executionProfile.totalAppTime");
+	equal(executionProfile.totalAppTime, expectedTime, "executionProfile.totalAppTime matches the expected total app time");
 }
 
+function toTicTocStats(expectedTicTocStatsRaw, totalAppTime, numThreads) {
+	var ticTocRegionToStats = {};
+
+	for (var ticTocRegionName in expectedTicTocStatsRaw) {
+		var stats = {};
+		var expectedStats = expectedTicTocStatsRaw[ticTocRegionName];
+		var totalTime = expectedStats.totalTime;
+		var abs = totalTime;
+
+		var pct = (abs * 100) / totalAppTime;
+		stats.totalTime = new Time(abs, pct);
+
+		var execTimeStatsRaw = expectedStats.execTime;
+		var execTimeStats = {};
+		for (var i = 0; i < numThreads; i++) {
+			abs = execTimeStatsRaw[i];
+			pct = (abs * 100) / totalTime;
+			execTimeStats[i] = new Time(abs, pct);
+		}
+
+		stats.execTimeStats = execTimeStats;
+
+		var syncTimeStatsRaw = expectedStats.syncTime;
+		var syncTimeStats = {};
+		for (var i = 0; i < numThreads; i++) {
+			abs = syncTimeStatsRaw[i];
+			pct = (abs * 100) / totalTime;
+			syncTimeStats[i] = new Time(abs, pct);
+		}
+
+		stats.syncTimeStats = syncTimeStats;
+		ticTocRegionToStats[ticTocRegionName] = stats;
+	}
+
+	return ticTocRegionToStats;
+}
+
+/*
 function toTicTocStats(expectedTicTocTimes) {
 	var totalAppTime = expectedTicTocTimes["all"];
 	var stats = {};
@@ -153,7 +247,9 @@ function toTicTocStats(expectedTicTocTimes) {
 
 	return stats;
 }
+*/
 
+/*
 function testTicTocStats(actualTicTocStats, expectedTicTocStats) {
 	for (var i in actualTicTocStats) {
 		var actualStats = actualTicTocStats[i];
@@ -162,6 +258,53 @@ function testTicTocStats(actualTicTocStats, expectedTicTocStats) {
 		equal(actualStats.totalTime.abs, expectedStats.abs, "Comparing absolute time of tic-toc region '" + actualStats.name + "'")
 		equal(actualStats.totalTime.pct.toFixed(2), expectedStats.pct.toFixed(2), "Comparing percentage time of tic-toc region '" + actualStats.name + "'")
 	}
+}
+*/
+
+function testTicTocStats(actualTicTocStats, expectedTicTocStats) {
+	console.log(actualTicTocStats);
+	console.log(expectedTicTocStats);
+	for (var i in actualTicTocStats) {
+		var actualStats = actualTicTocStats[i];
+		var region = actualStats.name;
+		var expectedStats = expectedTicTocStats[region];
+
+		console.log(actualStats);
+		console.log(expectedStats);
+
+		equal(actualStats.totalTime.abs, expectedStats.totalTime.abs, 
+			  "Comparing abs total time of tic-toc region '" + region + "'");
+
+		equal(actualStats.totalTime.pct.toFixed(0), expectedStats.totalTime.pct.toFixed(0), 
+			  "Comparing pct total time of tic-toc region '" + region + "'");
+
+		var actualExecTimeStats = actualStats.execTimeStats;
+		for (var tid in actualExecTimeStats) {
+			equal(actualExecTimeStats[tid].abs, expectedStats.execTimeStats[tid].abs,
+				  "Comparing abs exec time of tic-toc region '" + region + "' for thread " + tid);
+
+			equal(actualExecTimeStats[tid].pct.toFixed(0), expectedStats.execTimeStats[tid].pct.toFixed(0),
+				  "Comparing pct exec time of tic-toc region '" + region + "' for thread " + tid);
+		}
+
+		var actualSyncTimeStats = actualStats.syncTimeStats;
+		for (var tid in actualSyncTimeStats) {
+			equal(actualSyncTimeStats[tid].abs, expectedStats.syncTimeStats[tid].abs,
+				  "Comparing abs sync time of tic-toc region '" + region + "' for thread " + tid);
+
+			equal(actualSyncTimeStats[tid].pct.toFixed(0), expectedStats.syncTimeStats[tid].pct.toFixed(0),
+				  "Comparing pct sync time of tic-toc region '" + region + "' for thread " + tid);
+		}
+	}
+	/*
+	for (var i in actualTicTocStats) {
+		var actualStats = actualTicTocStats[i];
+		var expectedStats = expectedTicTocStats[actualStats.name];
+
+		equal(actualStats.totalTime.abs, expectedStats.abs, "Comparing absolute time of tic-toc region '" + actualStats.name + "'")
+		equal(actualStats.totalTime.pct.toFixed(2), expectedStats.pct.toFixed(2), "Comparing percentage time of tic-toc region '" + actualStats.name + "'")
+	}
+	*/
 }
 
 function testNameToIdMappingOfDNodes(dependencyData) {

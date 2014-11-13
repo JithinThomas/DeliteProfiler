@@ -1,10 +1,13 @@
 
-var runSummariesChart = "#containerRunSummaries";
-var uploadRunSummariesBtnId = "#_uploadRunSummaries";
-var initializeViewsBtnId = "#initializeViews";
+var runSummariesChart = "#compareRunSummariesDiv";
+var uploadRunSummariesBtnId = "#_uploadRunSummariesBtn";
+var initializeViewsBtnId = "#initializeViewsBtn";
 
 $(uploadRunSummariesBtnId).on("change", readExecutionProfiles);
 $(initializeViewsBtnId).on("click", initializeViews);
+$("#compareRunSummariesMetricOptions").change(function() {
+	initializeViews();
+});
 
 var threadCountToExecutionProfile = {};
 
@@ -33,15 +36,8 @@ function readExecutionProfiles(evt) {
 
 function initializeViews(evt) {
 	console.log("initializeViews");
-	console.log(threadCountToExecutionProfile);
-
-	function addToMap(dict, k, v) {
-		if (!(k in dict)) {
-			dict[k] = [];
-		}
-
-		dict[k].push(v);
-	}
+	var metric = $("#compareRunSummariesMetricOptions").val();
+	console.log(metric);
 
 	var xSeries = [];
 	var dataSeries = {};
@@ -51,43 +47,16 @@ function initializeViews(evt) {
 		executionProfile = threadCountToExecutionProfile[n];
 		for (var i in executionProfile.ticTocRegions) {
 			var region = executionProfile.ticTocRegions[i];
-			var absTime = region.totalTime.abs;
+			//var absTime = region.totalTime.abs;
+			var absTime = region[metric].abs;
 			addToMap(dataSeries, region.name, absTime);
 		}
 	}
 
-	/*
-	xSeries = [1, 2, 4, 8, 16, 32];
-	dataSeries = {
-		"TotalAppTime" 	: [3200, 1600, 800, 400, 200, 100],
-		"Region A"	   	: [2000, 1100, 500, 300, 150, 70],
-		"Region B"	   	: [1200, 500, 300, 100, 50, 30]
-	};
-	*/
-
-	console.log(xSeries);
-	console.log(dataSeries);
-
-	createLineChart(xSeries, dataSeries);
+	createLineChart(xSeries, dataSeries, "Number of Threads", "Time (ms)");
 }
 
-/*
-function initializeViews(evt) {
-	console.log("initializeViews");
-	console.log(threadCountToExecutionProfile);
-
-	xSeries = [1, 2, 4, 8, 16, 32];
-	dataSeries = {
-		"TotalAppTime" 	: [3200, 1600, 800, 400, 200, 100],
-		"Region A"	   	: [2000, 1100, 500, 300, 150, 70],
-		"Region B"	   	: [1200, 500, 300, 100, 50, 30]
-	};
-
-	createLineChart(xSeries, dataSeries);
-}
-*/
-
-function createLineChart(xSeries, dataSeries) {
+function createLineChart(xSeries, dataSeries, xAxisLabel, yAxisLabel) {
 	var cols = [];
 	var xCol = ['x'];
 
@@ -107,19 +76,23 @@ function createLineChart(xSeries, dataSeries) {
 		cols.push(col);
 	}
 
-	var d = {
-    	x : 'x',
-      	columns: cols
-    }
-
-    console.log(d);
-
 	var chart = c3.generate({
 	    bindto: runSummariesChart,
-	    data: d,
+	    data: {
+	    	x : 'x',
+      		columns: cols
+	    },
 	    axis: {
-	    	x: { label: "Number of Threads" },
-	    	y: { label: "Time (s)" }
+	    	x: { label: xAxisLabel },
+	    	y: { label: yAxisLabel }
 	    }
 	});
+}
+
+function addToMap(dict, k, v) {
+	if (!(k in dict)) {
+		dict[k] = [];
+	}
+
+	dict[k].push(v);
 }

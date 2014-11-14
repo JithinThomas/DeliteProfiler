@@ -112,70 +112,55 @@ function getNameOfParentLoop(nodeName, config) {
     return "";
 }
 
+function initializeDataForTimelineView(maxNodeLevel) {
+    var timelineData = {};
+    for (var i = 0; i <= maxNodeLevel; i++) {
+        timelineData[i] = {};
+    }
+
+    return timelineData;
+}
+
 // TODO: This is too long a function! Refactor it!
 // This function does two major distinct tasks: 
 //  (i) Build the data required for the timeline view
 //  (ii) Compute other stats (eg: aggregate stats per node, etc.)
 function getExecutionProfile(rawProfileData, dependencyData, config) {
     var perfProfile = rawProfileData.PerfProfile;
-    
-    var nodes = dependencyData.nodes;
-    var nodeNameToId = dependencyData.nodeNameToId;
-    
-    var executionProfile = new ExecutionProfile();
-    executionProfile.numThreads = getNumberOfThreads(perfProfile);
-
-    var dataForTimelineView = {};
-    var syncNodes = [];
-    var ticTocRegions = [];
-
-    var maxNodeLevel = dependencyData.maxNodeLevel;
-    for (var i = 0; i <= maxNodeLevel; i++) dataForTimelineView[i] = {}
-
     var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart;
     var appStartTimeInMillis = rawProfileData.Init.AppStartTimeInMillis;
 
+    var executionProfile = new ExecutionProfile();
+    executionProfile.numThreads = getNumberOfThreads(perfProfile);
+
+    var syncNodes = [];
+    var ticTocRegions = [];
+    var dataForTimelineView = initializeDataForTimelineView(dependencyData.maxNodeLevel);
+
     for (var i in perfProfile.kernels) {
         var name = perfProfile.kernels[i];
-        var start = perfProfile.start[i];
         var duration = perfProfile.duration[i];
 
-        var o = {};
-        o["name"] = perfProfile.kernels[i];
-        executionProfile.tryAddNode(o.name);
-
-        if (isPartitionNode(o.name, config)) {
-            var parentName = getNameOfParentLoop(o.name, config);
+        executionProfile.tryAddNode(name);
+        if (isPartitionNode(name, config)) {
+            var parentName = getNameOfParentLoop(name, config);
             executionProfile.tryAddNode(parentName);
         }
 
-        if (isValidKernel(o.name, nodeNameToId, config)) {
-            o["lane"] = perfProfile.location[i];
-            o["start"] = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
-            o["duration"] = perfProfile.duration[i];
-            o["end"] = o["start"] + o["duration"];
-            o["node"] = getDNodeCorrespondingToTNode(o, dependencyData, config);
-            o["id"] = (o.node) ? o.node.id : undefined;
-            o["level"] = getTNodeLevel(o);
-            o["displayText"] = getDisplayTextForTimelineNode(o, config.syncNodeRegex);
-            o["childNodes"] = []; // important for nested nodes such as WhileLoop, IfThenElse, etc.
-            o["syncNodes"] = [];
-            o["parentId"] = -1;
-            o["dep_thread"] = ""; // important for sync nodes - specifies the thread the sync was expecting a result from
-            o["dep_kernel"] = ""; // important for sync nodes - specifies the kernel the sync was expecting to complete
-            o["execTime"] = {"abs": undefined, "pct": undefined};
-            o["syncTime"] = {"abs": undefined, "pct": undefined};
-            o["ticTocRegions"] = []
-     
-            if (!(config.syncNodeRegex.test(o.name))) {
-                o.type = "execution";
-                addToMap(dataForTimelineView[o.level], o.name, o);
-                executionProfile.incrementTotalTime(o.name, o.duration);
+        if (isValidKernel(name, dependencyData.nodeNameToId, config)) {
+            var threadId = perfProfile.location[i];
+            var start = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
+            var correspondingDNode = getDNodeCorrespondingToTNode(name, dependencyData, config);
+            var tNode = new TNode(name, threadId, start, duration, correspondingDNode, config);
+
+            if (tNode.type == "execution") {
+                addToMap(dataForTimelineView[tNode.level], name, tNode);
+                executionProfile.incrementTotalTime(name, duration);
             } else {
-                o.type = "sync";
-                syncNodes.push(o);
+                syncNodes.push(tNode);
             }
         } else {
+            var start = perfProfile.start[i];
             var region = new TicTocRegion(name, start, duration, executionProfile.numThreads);
             ticTocRegions.push(region);
 
@@ -186,26 +171,26 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     }
 
     assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes, config);
-    updateChildNodesOfTNodes(dataForTimelineView, maxNodeLevel, dependencyData);
-    var topLevelTNodes = getTopLevelTNodes(dataForTimelineView);
-    assignTNodesToTicTocRegions(topLevelTNodes, ticTocRegions);
+    updateChildNodesOfTNodes(dataForTimelineView, dependencyData.maxNodeLevel, dependencyData);
 
     updateTimeTakenByPartitionedKernels(dependencyData, executionProfile);
     updateSyncAndExecTimesOfKernels(dataForTimelineView, dependencyData.maxNodeLevel, executionProfile);
     updateMemUsageOfDNodes(rawProfileData.MemProfile, dependencyData, executionProfile, config);
 
+    // Extract the performance data for tic-toc regions
+    var topLevelTNodes = getTopLevelTNodes(dataForTimelineView);
+    assignTNodesToTicTocRegions(topLevelTNodes, ticTocRegions);
     updateTicTocRegionsData(ticTocRegions, executionProfile.totalAppTime);
     executionProfile.ticTocRegions = ticTocRegions;
-    
-    var timelineData = {
-        "timing"        : dataForTimelineView,
-        "lanes"         : perfProfile.res,
-    };
 
-    executionProfile.threadLevelPerfStats = getThreadLevelPerfStats(timelineData, executionProfile);
+    // Update the remaining fields of executionProfile
+    executionProfile.threadLevelPerfStats = getThreadLevelPerfStats(dataForTimelineView, executionProfile);
     executionProfile.memUsageData = convertToStreamGraphFormat(rawProfileData);
     executionProfile.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.
-    executionProfile.timelineData = timelineData;
+    executionProfile.timelineData = {
+        "timing"        : dataForTimelineView,
+        "lanes"         : perfProfile.res,
+    };;
     
     return executionProfile;
 }
@@ -293,14 +278,14 @@ function getTNodeLevel(n) {
 }
 
 // For partition nodes like x123_1, it returns the parent loop's dNode, ie, x123 in the case of x123_1
-function getDNodeCorrespondingToTNode(tNode, dependencyData, config) {
-    var id = dependencyData.nodeNameToId[tNode.name];
+function getDNodeCorrespondingToTNode(tNodeName, dependencyData, config) {
+    var id = dependencyData.nodeNameToId[tNodeName];
     if (id != undefined) {
         return dependencyData.nodes[id];
     }
 
-    if (isPartitionNode(tNode.name, config)) {
-        var parentName = getNameOfParentLoop(tNode.name, config);
+    if (isPartitionNode(tNodeName, config)) {
+        var parentName = getNameOfParentLoop(tNodeName, config);
         return getDNode(dependencyData, parentName);
     }
 
@@ -389,7 +374,7 @@ function updateTimeTakenByPartitionedKernels(dependencyData, executionProfile) {
     })
 }
 
-function getThreadLevelPerfStats(timelineData, executionProfile) {
+function getThreadLevelPerfStats(dataForTimelineView, executionProfile) {
     var numThreads = executionProfile.numThreads;
     var threadToData = []
 
@@ -398,7 +383,7 @@ function getThreadLevelPerfStats(timelineData, executionProfile) {
                            "syncTime": {"abs": 0, "pct": 0}}
     }
 
-    var topLevelRuns = timelineData.timing[0]
+    var topLevelRuns = dataForTimelineView[0]
     for (tNodeName in topLevelRuns) {
         if (tNodeName != "all") {
             var runs = topLevelRuns[tNodeName]

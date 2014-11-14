@@ -124,7 +124,7 @@ function initializeDataForTimelineView(maxNodeLevel) {
 // TODO: This is too long a function! Refactor it!
 // This function does two major distinct tasks: 
 //  (i) Build the data required for the timeline view
-//  (ii) Compute other stats (eg: aggregate stats per node, etc.)
+//  (ii) Compute other stats (eg: aggregate time stats per node, etc.)
 function getExecutionProfile(rawProfileData, dependencyData, config) {
     var perfProfile = rawProfileData.PerfProfile;
     var jvmUpTimeAtAppStart = rawProfileData.Init.JVMUpTimeAtAppStart;
@@ -181,6 +181,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     var topLevelTNodes = getTopLevelTNodes(dataForTimelineView);
     assignTNodesToTicTocRegions(topLevelTNodes, ticTocRegions);
     updateTicTocRegionsData(ticTocRegions, executionProfile.totalAppTime);
+    ticTocRegions.sort(function(r1,r2) {return r2.duration - r1.duration});
     executionProfile.ticTocRegions = ticTocRegions;
 
     // Update the remaining fields of executionProfile
@@ -190,7 +191,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     executionProfile.timelineData = {
         "timing"        : dataForTimelineView,
         "lanes"         : perfProfile.res,
-    };;
+    };
     
     return executionProfile;
 }

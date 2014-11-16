@@ -45,8 +45,10 @@ var threadLevelSyncStats = []
 
 
 var getDisplayTextForTime = function(d) {
-	var timeInMs = (d.totalTimeAbs/1000).toFixed(0);
-	var timeStr = " (" + timeInMs + "ms:" + d.totalTimePct.toFixed(0) + "%)";
+	//var timeInMs = (d.totalTimeAbs/1000).toFixed(0);
+	//var timeStr = " (" + timeInMs + "ms:" + d.totalTimePct.toFixed(0) + "%)";
+	var timeInSecs = (d.totalTimeAbs/1000).toFixed(0);
+	var timeStr = " (" + timeInSecs + "s:" + d.totalTimePct.toFixed(0) + "%)";
 	return d.name + timeStr;
 }
 
@@ -178,24 +180,26 @@ function displayOverallRegionsData() {
 
 function displayKernelInfoForRegion(region) {
 	function getDisplayText(d) {
-		var timeInMs = (d.abs / 1000).toFixed(0)
-		return d.name + " (" + d.abs + "ms : " + d.pct + "%)"
+		//var timeInMs = (d.abs / 1000).toFixed(0)
+		//return d.name + " (" + d.abs + "ms : " + d.pct + "%)"
+		var timeInSecs = (d.abs / 1000).toFixed(0);
+		return d.name + " (" + timeInSecs + "s : " + d.pct + "%)";
 	}
 
-	var childNodes = []
-	var childToPerf = region.childToPerf
+	var childNodes = [];
+	var childToPerf = region.childToPerf;
 	for (k in region.childToPerf) {
-		var o = {}
-		o.name = k
-		o.id = childToPerf[k].id
-		o.abs = childToPerf[k].abs
-		o.pct = childToPerf[k].pct
-		childNodes.push(o)
+		var o = {};
+		o.name = k;
+		o.id = childToPerf[k].id;
+		o.abs = childToPerf[k].abs;
+		o.pct = childToPerf[k].pct;
+		childNodes.push(o);
 	}
 
-	childNodes.sort(function(a,b) {return b.pct - a.pct})
-	clearDivForBarChartDisplay()
-	createBarChart("#dfg", childNodes, "pct", getDisplayText, config)
+	childNodes.sort(function(a,b) {return b.pct - a.pct});
+	clearDivForBarChartDisplay();
+	createBarChart("#dfg", childNodes, "pct", getDisplayText, config);
 }
 
 function clearDivForBarChartDisplay() {

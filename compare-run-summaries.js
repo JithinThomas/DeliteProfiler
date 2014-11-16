@@ -47,7 +47,6 @@ function initializeViews(evt) {
 		executionProfile = threadCountToExecutionProfile[n];
 		for (var i in executionProfile.ticTocRegions) {
 			var region = executionProfile.ticTocRegions[i];
-			//var absTime = region[metric].abs;
 			var absTime = 0;
 			if (metric == "totalTime") {
 				absTime = region.totalTime.abs;

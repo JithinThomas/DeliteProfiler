@@ -47,8 +47,16 @@ function initializeViews(evt) {
 		executionProfile = threadCountToExecutionProfile[n];
 		for (var i in executionProfile.ticTocRegions) {
 			var region = executionProfile.ticTocRegions[i];
-			//var absTime = region.totalTime.abs;
-			var absTime = region[metric].abs;
+			//var absTime = region[metric].abs;
+			var absTime = 0;
+			if (metric == "totalTime") {
+				absTime = region.totalTime.abs;
+			} else if (metric == "execTime") {
+				absTime = region.execTimeStats[0].abs; //TODO: Instead of always displaying stats for thread 0, we need to have a thread-selection option
+			} else if (metric == "syncTime") {
+				absTime = region.syncTimeStats[0].abs;
+			}
+
 			addToMap(dataSeries, region.name, absTime);
 		}
 	}

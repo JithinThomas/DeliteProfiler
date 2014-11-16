@@ -28,7 +28,8 @@ function TimelineGraph(classStr, nameSuffix, parentDivId, profileData, timelineL
 	this.nameSuffix = nameSuffix;
 	this.parentDivId = parentDivId;
 	//this.timelineData = profileData.timelineData;
-	this.executionSummary = profileData.executionProfile.executionSummary;
+	//this.executionSummary = profileData.executionProfile.executionSummary;
+	this.executionProfile = profileData.executionProfile;
 	this.timelineData = profileData.executionProfile.timelineData;
 	this.dependencyData = profileData.dependencyData;
 	this.timelineLevelSelectorId = timelineLevelSelectorId;
@@ -131,27 +132,27 @@ TimelineGraph.prototype.draw = function() {
 	this.createTimelineNodes(items, this.timelineNodeClass);
 
 	//timeline labels
-	//var minDurationReqForDisplayingLabel = 0.05 * this.timelineData.totalAppTime;
-	var minDurationReqForDisplayingLabel = 0.05 * this.executionSummary.totalAppTime;
+	var minDurationReqForDisplayingLabel = 0.05 * this.executionProfile.totalAppTime;
 	var eventsWithLabel = items.filter(function(d) {return (d.end - d.start) >= minDurationReqForDisplayingLabel});
 	this.createTimelineLabels(eventsWithLabel, this.timelineNodeLabelClass);
 };
 
 TimelineGraph.prototype.convertDataToTimelineFormat = function(data) {
 	var res = [];
-	for (level in [0]) {
-		var runs = data[level];
-		for (node in runs) {
-			res = res.concat(runs[node]);
-		}
+	var runs = data[0];
+	for (node in runs) {
+		res = res.concat(runs[node]);
 	}
 
 	return res;
 };
 
 TimelineGraph.prototype.getAppBeginAndEndTimes = function(items) {
-	var appNode = items.filter(function(n) {return n.name == "all"})[0];
-	return {"begin": appNode.start, "end": appNode.end, "duration": appNode.duration};
+	//var appNode = items.filter(function(n) {return n.name == "all"})[0];
+	//return {"begin": appNode.start, "end": appNode.end, "duration": appNode.duration};
+	return {"begin": this.executionProfile.appStartTime, 
+			"end": this.executionProfile.appEndTime, 
+			"duration": this.executionProfile.totalAppTime};
 };
 
 TimelineGraph.prototype.createTimelineNodes = function(data, className) {

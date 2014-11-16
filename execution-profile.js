@@ -17,6 +17,8 @@ function ExecutionProfile() {
 	this.ticTocRegions = [];
 	this.timelineData = {};
 	this.totalAppTime = 0;
+	this.appStartTime = 0;
+	this.appEndTime = 0;
 }
 
 ExecutionProfile.prototype.tryAddNode = function(nodeName) {

@@ -140,6 +140,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     for (var i in perfProfile.kernels) {
         var name = perfProfile.kernels[i];
         var duration = perfProfile.duration[i];
+        var start = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
 
         executionProfile.tryAddNode(name);
         if (isPartitionNode(name, config)) {
@@ -149,7 +150,6 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
 
         if (isValidKernel(name, dependencyData.nodeNameToId, config)) {
             var threadId = perfProfile.location[i];
-            var start = (perfProfile.start[i] - appStartTimeInMillis) + jvmUpTimeAtAppStart;
             var correspondingDNode = getDNodeCorrespondingToTNode(name, dependencyData, config);
             var tNode = new TNode(name, threadId, start, duration, correspondingDNode, config);
 
@@ -160,12 +160,15 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
                 syncNodes.push(tNode);
             }
         } else {
-            var start = perfProfile.start[i];
+            //var start = perfProfile.start[i];
             var region = new TicTocRegion(name, start, duration, executionProfile.numThreads);
             ticTocRegions.push(region);
 
             if (name == "all") {
-                executionProfile.setTotalAppTime(perfProfile.duration[i]);
+                //executionProfile.setTotalAppTime(perfProfile.duration[i]);
+                executionProfile.totalAppTime = duration;
+                executionProfile.appStartTime = start;
+                executionProfile.appEndTime = start + duration;
             }
         }
     }

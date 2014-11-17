@@ -25,7 +25,7 @@ function createGCStatsGraph(parentDivId, gcStats, xScale, config) {
    		.style("fill", getFill)
    		.style("stroke", "black")
    		.style("stroke-width", 1)
-   		.on("dblclick", dblClickHandler)
+   		.on("click", clickHandler)
 
 	function getFill(d) {
 		switch(d.type) {
@@ -34,23 +34,26 @@ function createGCStatsGraph(parentDivId, gcStats, xScale, config) {
 			default      : console.error("Unexpected value for GC Event type")
 		}
 	}
-
-	var colNames = ["beforeGC", "afterGC", "committed"]
-	function dblClickHandler(d) {
-		var data = []
-		data.push(["Type of Memory", "Before GC", "After GC", "Committed"])
-
-		var y = d.youngGenStats.sizeStats
-		data.push(["Young Gen", y.beforeGC, y.afterGC, y.committed])
+	
+	var previouslyClickedNode = 0;
+	function clickHandler(d, i) {
+		var data = [];
+		var y = d.youngGenStats.sizeStats;
+		data.push(["Young Gen", y.beforeGC, y.afterGC, y.committed]);
 
 		if (d.type == MAJOR_GC) {
-			var o = d.oldGenStats.sizeStats
-			data.push(["Old Gen", o.beforeGC, o.afterGC, o.committed])	
+			var o = d.oldGenStats.sizeStats;
+			data.push(["Old Gen", o.beforeGC, o.afterGC, o.committed]);
+		} else {
+			data.push(["Old Gen", "N/A", "N/A", "N/A"]);
 		}
 
-		var h = d.heapStats
-		data.push(["Heap", h.beforeGC, h.afterGC, h.committed])		
+		var h = d.heapStats;
+		data.push(["Heap", h.beforeGC, h.afterGC, h.committed]);
 		
-		config.displayGCEventStats(data)	
+		config.populateGCEventInfoTable(data);
+		$(".annotation")[previouslyClickedNode].style["stroke-width"] = "1px"
+		$(".annotation")[i].style["stroke-width"] = "5px"
+		previouslyClickedNode = i;
 	}
 }

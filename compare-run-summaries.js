@@ -35,10 +35,7 @@ function readExecutionProfiles(evt) {
 }
 
 function initializeViews(evt) {
-	console.log("initializeViews");
 	var metric = $("#compareRunSummariesMetricOptions").val();
-	console.log(metric);
-
 	var xSeries = [];
 	var dataSeries = {};
 

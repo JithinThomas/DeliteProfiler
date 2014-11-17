@@ -1,4 +1,9 @@
 
+var maxTimeTakenByAKernel = 0;
+var maxMemUsageByAKernel = 0;
+var colorNodeBasedOnTimeTaken = {};
+var colorNodeBasedOnMemUsage = {};
+
 function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, config) {
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
@@ -126,17 +131,7 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 			case 'Conditional': return "green"
 			default			  : return "white"
 		}
-	}
-
-	var maxTimeTakenByAKernel = nodesToDisplay.map(function(n) {return n.percentage_time}).sort(function(a,b) {return b - a})[1]
-	var colorNodeBasedOnTimeTaken = d3.scale.linear()
-								    .domain([0, maxTimeTakenByAKernel])
-								    .range(["white", "red"]);
-
-	var maxMemUsageByAKernel = nodesToDisplay.map(function(n) {return n.memUsage}).sort(function(a,b) {return b - a})[1]
-	var colorNodeBasedOnMemUsage = d3.scale.linear()
-							    	.domain([0, maxMemUsageByAKernel])
-								    .range(["white", "red"]);						  
+	}					  
 
 	var constraints = []
 	function generateConstraints() {
@@ -282,11 +277,19 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 				graphElements.selectAll(".dataflow-kernel")
 			    			 .attr("fill", function(d) {return colorNodeBasedOnDataDeps(d)})
 			} else if (scheme == "performance") {
+				var nodeNameToSummary = profData.executionProfile.nodeNameToSummary;
 				graphElements.selectAll(".dataflow-kernel")
-			    			 .attr("fill", function(d) {return colorNodeBasedOnTimeTaken(d.percentage_time)})
+			    			.attr("fill", function(d) {
+			    			 	var timePct = (d.name in nodeNameToSummary) ? nodeNameToSummary[d.name].totalTime.pct : 0;
+			    			 	return colorNodeBasedOnTimeTaken(timePct);
+			    			});
 			} else if (scheme == "memUsage") {
+				var nodeNameToSummary = profData.executionProfile.nodeNameToSummary;
 				graphElements.selectAll(".dataflow-kernel")
-			    			 .attr("fill", function(d) {return colorNodeBasedOnMemUsage(d.memUsage)})
+			    			.attr("fill", function(d) {
+			    				var memUsage = (d.name in nodeNameToSummary) ? nodeNameToSummary[d.name].memUsage : 0;
+			    			 	return colorNodeBasedOnMemUsage(memUsage);
+			    			});
 			} else if (scheme == "nodeType") {
 				graphElements.selectAll(".dataflow-kernel")
 			    			 .attr("fill", function(d) {return colorNodeBasedOnType(d.type)})
@@ -296,4 +299,13 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 
 	return new controller()
 }
+	
+function setTimeAndMemColorScales() {
+	colorNodeBasedOnTimeTaken = d3.scale.linear()
+							    .domain([0, maxTimeTakenByAKernel])
+							    .range(["white", "red"]);
 
+	colorNodeBasedOnMemUsage = d3.scale.linear()
+						    	.domain([0, maxMemUsageByAKernel])
+							    .range(["white", "red"]);
+}

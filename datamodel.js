@@ -241,8 +241,8 @@ function updateTicTocRegionsData(ticTocRegions, totalAppTime) {
 
     function computePct(map, durationOfRegion) {
         for (k in map) {
-            var d = map[k]
-            d.pct = ((d.abs * 100) / durationOfRegion).toFixed(2)
+            var d = map[k];
+            d.pct = parseFloat(((d.abs * 100) / durationOfRegion).toFixed(2));
         }
     }
 
@@ -542,7 +542,6 @@ function assignSyncNodesToParents(dataForTimelineView, dependencyData, syncNodes
                 parentDNodeName = getNameOfParentLoop(parentName, config);
             }
 
-            //var parentId = dependencyData.nodeNameToId[parentName]
             var parentId = dependencyData.nodeNameToId[parentDNodeName]
             var parentLevel = dependencyData.nodes[parentId].level
             var parent = dataForTimelineView[parentLevel][parentName].filter(function(p) {

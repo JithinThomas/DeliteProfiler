@@ -80,7 +80,6 @@
 												<option value="memUsage">Mem Usage</option>
 												<option value="threadLevelSyncStats">Thread Sync</option>
 												<option value="ticTocRegionStats">Tic-Toc Regions</option>
-												<option value="gcEventStats">GC Event</option>
 											</select>
 										</a>
 									</li>
@@ -89,12 +88,6 @@
 							<li class="active">
 								<h3>Timeline</h3>
 								<ul>
-									<!--li>
-										<a href="#">
-											<span>Level Filter</span>	
-											<select id="timelineLevelFilter"></select>
-										</a>
-									</li-->
 									<li>
 										<a href="#">
 											<span>Zoom </span>
@@ -149,7 +142,8 @@
 											</tr>
 										</table>
 									</li>
-								</ul>	
+								</ul>
+							</li>
 							<li class="active">
 								<h3>Sync Node Info</h3>
 								<ul>
@@ -168,6 +162,37 @@
 											<tr>
 												<td>Time (%)</td>
 												<td></td> 
+											</tr>
+										</table>
+									</li>
+								</ul>
+							</li>
+							<li class="active" style="height: 200">
+								<h3>GC Event Info</h3>
+								<ul>
+									<li>
+										<table id="gcEventInfoTable" class="sidebarTable">
+											<th>Mem</th>
+											<th>Before</th> 
+											<th>After</th>
+											<th>Comm</th>
+											<tr>
+												<td></td>
+												<td></td>
+												<td></td>
+												<td></td>
+											</tr>
+											<tr>
+												<td></td>
+												<td></td>
+												<td></td>
+												<td></td>
+											</tr>
+											<tr>
+												<td></td>
+												<td></td>
+												<td></td>
+												<td></td>
 											</tr>
 										</table>
 									</li>

@@ -22,9 +22,9 @@ function appendRunView(evt) {
 		createCloseButton(divId, "#" + getHeaderDivId(divId));
 		createRunDiv(divId, containerDivId);
 
-		data = JSON.parse(e.target.result)
+		data = JSON.parse(e.target.result);
 		timelineDataModel = {
-			"timelineData": getDataForTimelineView(data.Profile, profData.dependencyData, config),
+			"executionProfile": getExecutionProfile(data.Profile, profData.dependencyData, config),
 			"dependencyData": profData.dependencyData,
 		};
 
@@ -32,7 +32,8 @@ function appendRunView(evt) {
 		var timelineElemsNameSuffix = "-" + divId;
 		var timelineParentDivId = "#" + getRunDivId(divId);
 		var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
-		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
+		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, 
+										 timelineDataModel, timelineLevelSelectionId ,config);
 		timeline.draw();
 
 		createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);

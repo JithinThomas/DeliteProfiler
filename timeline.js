@@ -106,16 +106,16 @@ TimelineGraph.prototype.draw = function() {
 		.attr("class", TIMELINE_OUTERMOST_SVG_GROUP_PREFIX)
 		.attr("id", this.outermostSvgGroupId);
 
-	//timeline lanes and texts
-	this.timelineGraph.append("g").selectAll(".laneLines")
-		.data(items)
+	this.timelineGraph.append("g").selectAll(toClassSelector(this.laneLineClass))
+		.data(lanes)
 		.enter().append("line")
 		.attr("x1", m[3])
-		.attr("y1", function(d) {return y(d.lane + 0.5);})
+		.attr("y1", function(d, i) {return y(i + .5);})
 		.attr("x2", chartWidth)
-		.attr("y2", function(d) {return y(d.lane + 0.5);})
+		.attr("y2", function(d, i) {return y(i + .5);})
 		.attr("stroke", "black")
-		.attr("class", this.laneLineClass);
+		.attr("class", this.laneLineClass)
+		.style("opacity", "0.2")
 
 	this.timelineGraph.append("g").selectAll(toClassSelector(this.laneTextClass))
 		.data(lanes)

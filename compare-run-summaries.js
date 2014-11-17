@@ -12,10 +12,7 @@ $("#compareRunSummariesMetricOptions").change(function() {
 var threadCountToExecutionProfile = {};
 
 function readExecutionProfiles(evt) {
-	console.log("readExecutionProfiles");
-
 	var files = evt.target.files;
-	console.log(files)
 	if (files.length > 0) {
 		for (var i = 0; i < files.length; i++) {
 			var reader = new FileReader();

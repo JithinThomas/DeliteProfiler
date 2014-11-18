@@ -9,9 +9,18 @@ $("#compareRunSummariesMetricOptions").change(function() {
 	initializeViews();
 });
 
+var kernelSummariesChart = "#compareKernelSummariesDiv";
+$('#compareSummariesOfKernelTxtBx').keyup(function(event){
+    if(event.keyCode == 13){
+        displaySummariesOfKernel($(this).val())
+    }
+});
+
 var threadCountToExecutionProfile = {};
+var kernelSummariesDisplayed = {};
 
 function readExecutionProfiles(evt) {
+	threadCountToExecutionProfile = {};
 	var files = evt.target.files;
 	if (files.length > 0) {
 		for (var i = 0; i < files.length; i++) {
@@ -19,13 +28,14 @@ function readExecutionProfiles(evt) {
 			reader.onload = function(e) {
 				var data = JSON.parse(e.target.result);
 				var executionProfile = getExecutionProfile(data.Profile, profData.dependencyData, config);
+				executionProfile.fileName = e.name;
 				var numThreads = executionProfile.numThreads;
 				if (!(numThreads in threadCountToExecutionProfile)) {
 					threadCountToExecutionProfile[numThreads] = executionProfile;
 				}
 			}
 
-			file = files[i];
+			var file = files[i];
 			reader.readAsText(file);
 		}
 	}
@@ -54,10 +64,11 @@ function initializeViews(evt) {
 		}
 	}
 
-	createLineChart(xSeries, dataSeries, "Number of Threads", "Time (ms)");
+	createLineChart(runSummariesChart, xSeries, dataSeries, "Number of Threads", "Time (ms)");
+	displaySummariesOfKernel("");
 }
 
-function createLineChart(xSeries, dataSeries, xAxisLabel, yAxisLabel) {
+function createLineChart(parentDivIdSelector, xSeries, dataSeries, xAxisLabel, yAxisLabel) {
 	var cols = [];
 	var xCol = ['x'];
 
@@ -78,7 +89,7 @@ function createLineChart(xSeries, dataSeries, xAxisLabel, yAxisLabel) {
 	}
 
 	var chart = c3.generate({
-	    bindto: runSummariesChart,
+	    bindto: parentDivIdSelector,
 	    data: {
 	    	x : 'x',
       		columns: cols
@@ -90,6 +101,38 @@ function createLineChart(xSeries, dataSeries, xAxisLabel, yAxisLabel) {
 	});
 }
 
+function displaySummariesOfKernel(kernel) {
+	var metric = $("#compareKernelSummariesMetricOptions").val();
+	var xSeries = [];
+	var dataSeries = {};
+
+	if (!(kernel in kernelSummariesDisplayed)) {
+		kernelSummariesDisplayed[kernel] = [];
+	}
+
+	for (var n in threadCountToExecutionProfile) {
+		xSeries.push(n);
+		executionProfile = threadCountToExecutionProfile[n];
+		for (var k in kernelSummariesDisplayed) {
+			var summary = executionProfile.nodeNameToSummary[k];
+			if (summary) {
+				var absTime = 0;
+				if (metric == "totalTime") {
+					absTime = summary.totalTime.abs;
+				} else if (metric == "execTime") {
+					absTime = summary.execTime.abs;
+				} else if (metric == "syncTime") {
+					absTime = summary.syncTime.abs;
+				}
+
+				addToMap(dataSeries, k, absTime);
+			}
+		}
+	}
+
+	createLineChart(kernelSummariesChart, xSeries, dataSeries, "Number of Threads", "Time (ms)");
+}
+
 function addToMap(dict, k, v) {
 	if (!(k in dict)) {
 		dict[k] = [];
@@ -97,3 +140,54 @@ function addToMap(dict, k, v) {
 
 	dict[k].push(v);
 }
+
+/*
+function readExecutionProfiles(evt) {
+	var files = evt.target.files;
+	if (files.length > 0) {
+		for (var i = 0; i < files.length; i++) {
+			var file = files[i];
+			var reader = new FileReader();
+			reader.onload = (function(e) {
+				var fileName = e.name;
+				return function(e) {
+					console.log(fileName);
+					var data = JSON.parse(e.target.result);
+					var executionProfile = getExecutionProfile(data.Profile, profData.dependencyData, config);
+					executionProfile.fileName = fileName;
+					var numThreads = executionProfile.numThreads;
+					if (!(numThreads in threadCountToExecutionProfile)) {
+						threadCountToExecutionProfile[numThreads] = executionProfile;
+					}
+				}
+			})(file);
+
+			reader.readAsText(file);
+		}
+	}
+}
+
+function createTimelineForComparison(executionProfile) {
+	createHeaderDiv(divId, containerDivId);
+	$("#" + getHeaderDivId(divId)).append(executionProfile.fileName);
+	createCloseButton(divId, "#" + getHeaderDivId(divId));
+	createRunDiv(divId, containerDivId);
+
+	var timelineDataModel = {
+		"executionProfile": executionProfile,
+		"dependencyData": profData.dependencyData,
+	};
+
+	var timelineClassStr = "comp-timeline";
+	var timelineElemsNameSuffix = "-" + divId;
+	var timelineParentDivId = "#" + getRunDivId(divId);
+	var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
+	var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, 
+									 timelineDataModel, timelineLevelSelectionId ,config);
+	timeline.draw();
+
+	createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);
+
+	divId++;
+}
+//*/

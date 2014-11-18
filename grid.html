@@ -218,7 +218,7 @@
 				<div id="containerCompareRuns" class="ui-tabs-panel">
 					<div id="compareRunsHeader">
 						<input type="button" id="addProfileDataBtn" value="Upload profile data" onclick="document.getElementById('_addProfileDataBtn').click();" />
-						<input type="file" id="_addProfileDataBtn" name="files[]" style="display: none;" />
+						<input type="file" id="_addProfileDataBtn" name="files[]" style="display: none;" multiple/>
 						<select id="compareRunsMetricOptions">
 							<option>Timeline</option>
 						</select>
@@ -241,7 +241,18 @@
 						<label for="compareRunSummariesMetricOptions" id="compareRunSummariesMetricOptionsLabel">Metric</label>
 					</div>
 					<div id="compareRunSummariesDiv">
-
+					</div>
+					<div id="compareKernelSummariesHeader">
+						<input type="text" id="compareSummariesOfKernelTxtBx" size="5" value="">
+						<label for="compareSummariesOfKernelTxtBx" id="compareSummariesOfKernelLabel">Kernel</label>
+						<select id="compareKernelSummariesMetricOptions">
+							<option value="totalTime">Total time</option>
+							<option value="execTime">Exec time</option>
+							<option value="syncTime">Sync time</option>
+						</select>
+						<label for="compareKernelSummariesMetricOptions" id="compareKernelSummariesMetricOptionsLabel">Metric</label>
+					</div>
+					<div id="compareKernelSummariesDiv">
 					</div>
 				</div>
 			</div>

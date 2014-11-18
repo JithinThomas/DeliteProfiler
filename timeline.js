@@ -61,7 +61,7 @@ TimelineGraph.prototype.draw = function() {
 	var lanes = this.timelineData.lanes;
 	this.laneColors = lanes.map(function(l, i) {return LANE_COLORS[i % LANE_COLORS.length]});
 
-	var tmp = this.getAppBeginAndEndTimes(items);
+	var tmp = this.getAppBeginAndEndTimes();
 	var	timeBegin = tmp.begin - tmp.duration * 0.01;
 	var	timeEnd = tmp.end + tmp.duration * 0.01;
 
@@ -78,7 +78,9 @@ TimelineGraph.prototype.draw = function() {
 		.range(initialXRange);
 
 	this.initialXRange = initialXRange;
-	this.xScale = x;
+	if (this.xScale == null) {
+		this.xScale = x;
+	}
 
 	var	numLanes = lanes.length;
 	var y = d3.scale.linear()
@@ -147,7 +149,7 @@ TimelineGraph.prototype.convertDataToTimelineFormat = function(data) {
 	return res;
 };
 
-TimelineGraph.prototype.getAppBeginAndEndTimes = function(items) {
+TimelineGraph.prototype.getAppBeginAndEndTimes = function() {
 	return {"begin": this.executionProfile.appStartTime, 
 			"end": this.executionProfile.appEndTime, 
 			"duration": this.executionProfile.totalAppTime};
@@ -260,11 +262,13 @@ TimelineGraph.prototype.timelineNodeClickHandler = function(tNode) {
 		this.config.populateSyncNodeInfoTable(tNode);
 	} else if (nodeType == "execution") {
 		this.config.populateKernelInfoTable(tNode);
-		this.config.markGraphNode(tNode.id);
-		this.config.markNeighborsOnGraph(tNode.id);
+		this.config.markGraphNode(tNode.node.id);
+		this.config.markNeighborsOnGraph(tNode.node.id);
+		//this.config.markGraphNode(tNode.id);
+		//this.config.markNeighborsOnGraph(tNode.id);
 
-		var dNode = this.dependencyData.nodes[tNode.id];
-		var sc = dNode.sourceContext;
+		//var dNode = this.dependencyData.nodes[tNode.id];
+		var sc = tNode.node.sourceContext;
 		this.config.highlightLineInEditor(sc.file, sc.line);
 	}
 };

@@ -11,6 +11,7 @@ divId = 1; // the id # of the next div that would be created to display a new pr
 //	Main functions
 // =================================================
 
+///*
 $(addRunBtnId).on("change", appendRunView)
 
 function appendRunView(evt) {
@@ -48,6 +49,7 @@ function appendRunView(evt) {
 		this.value = null; // resetting the value in order to enable the "onchange" event even if the user selects another file with the same name
 	}
 }
+//*/
 
 function closeRunView(i) {
 	$("#" + getHeaderDivId(i)).remove();
@@ -113,6 +115,8 @@ function getLevelSelectorId(i) {
 // =================================================
 
 /*
+$(addRunBtnId).on("change", addRunViews)
+
 function addRunViews(evt) {
 	var files = evt.target.files;
 	for (var i = 0; i < files.length; i++) {
@@ -126,13 +130,13 @@ function readFile(file) {
 	var fileName = file.name;
 	reader.onload = function(e) {
     	createHeaderDiv(divId, containerDivId);
-		$("#" + getHeaderDivId(divId)).append(dataFileName);
+		$("#" + getHeaderDivId(divId)).append(fileName);
 		createCloseButton(divId, "#" + getHeaderDivId(divId));
 		createRunDiv(divId, containerDivId);
 
-		data = JSON.parse(e.target.result)
+		data = JSON.parse(e.target.result);
 		timelineDataModel = {
-			"timelineData": getDataForTimelineView(data.Profile, profData.dependencyData, config),
+			"executionProfile": getExecutionProfile(data.Profile, profData.dependencyData, config),
 			"dependencyData": profData.dependencyData,
 		};
 
@@ -140,7 +144,9 @@ function readFile(file) {
 		var timelineElemsNameSuffix = "-" + divId;
 		var timelineParentDivId = "#" + getRunDivId(divId);
 		var timelineLevelSelectionId = "#" + getLevelSelectorId(divId);
-		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, timelineDataModel, timelineLevelSelectionId ,config);
+		var timeline = new TimelineGraph(timelineClassStr, timelineElemsNameSuffix, timelineParentDivId, 
+										 timelineDataModel, timelineLevelSelectionId ,config);
+
 		timeline.draw();
 
 		createLevelSelector(divId, "#" + getHeaderDivId(divId), timeline);
@@ -150,4 +156,5 @@ function readFile(file) {
 
     reader.readAsText(file);
 }
-*/
+//*/
+

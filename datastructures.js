@@ -4,6 +4,7 @@
 //====================================================
 
 var ticTocRegionId = 0
+var tNodeId = 0;
 
 //====================================================
 // Data structures
@@ -16,7 +17,8 @@ function TNode(name, threadId, start, duration, dNode, config) {
 	this.duration = duration;
 	this.end = start + duration;
 	this.node = dNode;
-	this.id = (dNode) ? dNode.id : undefined;
+	//this.id = (dNode) ? dNode.id : undefined;
+	this.id = tNodeId++;
 	this.level = getTNodeLevel(this);
 	this.displayText = getDisplayTextForTimelineNode(this, config.syncNodeRegex);
 	this.childNodes = [];

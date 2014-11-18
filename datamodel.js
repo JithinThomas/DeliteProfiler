@@ -188,6 +188,7 @@ function getExecutionProfile(rawProfileData, dependencyData, config) {
     executionProfile.ticTocRegions = ticTocRegions;
 
     // Update the remaining fields of executionProfile
+    executionProfile.jvmUpTimeAtAppStart = jvmUpTimeAtAppStart;
     executionProfile.threadLevelPerfStats = getThreadLevelPerfStats(dataForTimelineView, executionProfile);
     executionProfile.memUsageData = convertToStreamGraphFormat(rawProfileData);
     executionProfile.computePercentageTimeForAllNodes(); // Important to sanitize the percentage values.

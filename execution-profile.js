@@ -10,6 +10,8 @@ var defaultTime = new Time(0, 0);
 //====================================================
 
 function ExecutionProfile() {
+	this.fileName = "";
+	this.jvmUpTimeAtAppStart = 0;
 	this.memUsageData = [];
 	this.nodeNameToSummary = {}; // node name to a summary of its timing stats
 	this.numThreads = 0;

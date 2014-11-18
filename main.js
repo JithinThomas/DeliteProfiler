@@ -284,27 +284,23 @@ function highlightLineInEditorByKernelId(nodeId) {
 	highlightLineInEditor(sc.file, sc.line)
 }
 
-function populateKernelInfoTable(tNode) {
+function populateKernelInfoTable(node) {
 	function helper(num) {
 		if (num != undefined) return num.toFixed(0)
 		return "NA"
 	};
 
-	function getEffectiveNodeType(tn) {
-		return profData.dependencyData.nodes[tn.id].type;
-	};
-
-	var dNode = profData.dependencyData.nodes[tNode.id];
+	var dNode = (node.node) ? node.node : node;
 	var nodeType = dNode.type;
 	var target = dNode.target;
-	var summary = profData.executionProfile.nodeNameToSummary[tNode.name];
+	var summary = profData.executionProfile.nodeNameToSummary[node.name];
 	
 	var timeStr = getDisplayTextForTimeAbsPctPair(summary.totalTime.abs, summary.totalTime.pct);
 	var execTimePct = helper(summary.execTime.pct);
 	var syncTimePct = helper(summary.syncTime.pct);
 	var memUsage = summary.memUsage + " B";
 
-	var values = [tNode.name, nodeType, target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage];
+	var values = [node.name, nodeType, target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage];
 	var table = $("#kernelInfoTable")[0];
 	values.forEach(function(v, i) {
 		var row = table.rows[i + 1];
@@ -338,7 +334,7 @@ function getTopNodesBasedOnTotalTime(nodeNameToSummary, dependencyData, count) {
 					"name": name, 
 					"totalTimeAbs": totalTime.abs, 
 					"totalTimePct": totalTime.pct,
-					"dNode": dNode
+					"node": dNode
 				});
 			}
 		}
@@ -358,7 +354,7 @@ function getTopNodesBasedOnMemUsage(nodeNameToSummary, dependencyData, count) {
 				nodeNameAttrPairs.push({
 					"name": name, 
 					"memUsage": nodeNameToSummary[name].memUsage,
-					"dNode": dNode
+					"node": dNode
 				});
 			}
 		}
@@ -387,8 +383,8 @@ function startDebugSession() {
 
 		editor = createEditor("code")
   		profData = getProfileData(degOps, profileData.Profile, config)
-  		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-  		//graphController = {}
+  		//graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+  		graphController = {}
 
   		// This is the data to be visualized using bar charts
   		topNodesBasedOnTime = getTopNodesBasedOnTotalTime(profData.executionProfile.nodeNameToSummary, profData.dependencyData, 20);

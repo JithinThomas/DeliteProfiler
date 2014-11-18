@@ -63,8 +63,19 @@ function createStackGraph(parentDivId, data, xScale) {
 		.attr("width", markerDimension)
 		.attr("height", markerDimension)
 		.style("fill", "orange")
+		.on("click", markerClickHandler);
 		//.on("mouseenter", function (d) { showPopover.call(this, d); })
    		//.on("mouseleave",  function (d) { removePopovers(); })
+
+   	function markerClickHandler(d, i) {
+   		var table = $("#memUsageInfoTable")[0];
+   		for (var j = 1; j <= 3; j++) {
+   			var row = table.rows[j];
+   			var memTypeValuePair = layers[j - 1].values[i];
+   			row.cells[0].innerHTML = memTypeValuePair.key;
+   			row.cells[1].innerHTML = memUsageValueToStr(memTypeValuePair.value);
+   		}
+   	}
 
    	function removePopovers () {
 	  $('.popover').remove()

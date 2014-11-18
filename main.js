@@ -97,31 +97,12 @@ $(document).ready(function() {
 	$("#dfg").css("height", $("#dfg").height() - $("#dfgHeader").height());
 });
 
-function getDisplayTextForTimeAbsPctPair(abs, pct) {
-	var displayInMs = (abs < 1000) ? true : false;
-	var timeAbs = displayInMs ? abs : (abs/1000).toFixed(0);
-	var timeUnit = displayInMs ? "ms" : "s";
-	return "(" + timeAbs + timeUnit + " : " + pct.toFixed(0) + "%)";
-}
-
 function getDisplayTextForTime(d) {
-	return d.name + " " + getDisplayTextForTimeAbsPctPair(d.totalTimeAbs, d.totalTimePct);
+	return d.name + " (" + getDisplayTextForTimeAbsPctPair(d.totalTimeAbs, d.totalTimePct) + ")";
 }
 
 function getDisplayTextForMemUsage(d) {
-	if (d.memUsage > 1) {
-		var labels = ["B", "KB", "MB", "GB"];
-		var value = d.memUsage;
-		var i = 0;
-		while ((i < labels.length) && (value > 1)) {
-			value = value / 1000;
-			i++;
-		}
-
-		return d.name + " (" + ((value * 1000).toFixed(0)) + labels[i - 1] + ")";
-	}
-
-	return d.name + " (0B)";
+	return d.name + " (" + memUsageValueToStr(d.memUsage) + ")";
 }
 
 function getDisplayTextForThreadLevelSync(d) {
@@ -185,7 +166,7 @@ function setUpSelectTagForRegions(regions) {
 
 function onChangeRegionOption() {
 	function getDisplayTextForRegionComp(d) {
-		return d.name + " " + getDisplayTextForTimeAbsPctPair(d.abs, d.pct);
+		return d.name + " (" + getDisplayTextForTimeAbsPctPair(d.abs, d.pct) + ")";
 	}
 
 	if (viewState.globalStatsMetric == "ticTocRegionStats") {
@@ -298,7 +279,8 @@ function populateKernelInfoTable(node) {
 	var timeStr = getDisplayTextForTimeAbsPctPair(summary.totalTime.abs, summary.totalTime.pct);
 	var execTimePct = helper(summary.execTime.pct);
 	var syncTimePct = helper(summary.syncTime.pct);
-	var memUsage = summary.memUsage + " B";
+	//var memUsage = summary.memUsage + " B";
+	var memUsage = memUsageValueToStr(summary.memUsage);
 
 	var values = [node.name, nodeType, target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage];
 	var table = $("#kernelInfoTable")[0];

@@ -274,6 +274,35 @@ function populateKernelInfoTable(node) {
 	var dNode = (node.node) ? node.node : node;
 	var nodeType = dNode.type;
 	var target = dNode.target;
+	var values = [];
+	var summary = profData.executionProfile.nodeNameToSummary[node.name];
+	if (summary) {
+		var timeStr = getDisplayTextForTimeAbsPctPair(summary.totalTime.abs, summary.totalTime.pct);
+		var execTimePct = helper(summary.execTime.pct);
+		var syncTimePct = helper(summary.syncTime.pct);
+		var memUsage = memUsageValueToStr(summary.memUsage);
+		values = [node.name, nodeType, target, timeStr , execTimePct + "/" + syncTimePct + " %", memUsage];
+	} else {
+		values = [node.name, nodeType, target, "-" , "-", "-"];
+	}
+	
+	var table = $("#kernelInfoTable")[0];
+	values.forEach(function(v, i) {
+		var row = table.rows[i + 1];
+		row.cells[1].innerHTML = values[i];
+	})
+}
+
+/*
+function populateKernelInfoTable(node) {
+	function helper(num) {
+		if (num != undefined) return num.toFixed(0)
+		return "NA"
+	};
+
+	var dNode = (node.node) ? node.node : node;
+	var nodeType = dNode.type;
+	var target = dNode.target;
 	var summary = profData.executionProfile.nodeNameToSummary[node.name];
 	
 	var timeStr = getDisplayTextForTimeAbsPctPair(summary.totalTime.abs, summary.totalTime.pct);
@@ -289,6 +318,7 @@ function populateKernelInfoTable(node) {
 		row.cells[1].innerHTML = values[i];
 	})
 }
+*/
 
 function populateSyncNodeInfoTable(node) {
 	var properties = ["Dep. Thread", "Dep. Kernel", "Time (%)"]
@@ -365,8 +395,8 @@ function startDebugSession() {
 
 		editor = createEditor("code")
   		profData = getProfileData(degOps, profileData.Profile, config)
-  		//graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
-  		graphController = {}
+  		graphController = createDataFlowGraph(cola, "#dfg", profData.dependencyData, viewState, config)
+  		//graphController = {}
 
   		// This is the data to be visualized using bar charts
   		topNodesBasedOnTime = getTopNodesBasedOnTotalTime(profData.executionProfile.nodeNameToSummary, profData.dependencyData, 20);

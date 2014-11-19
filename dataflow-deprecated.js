@@ -5,6 +5,8 @@ var colorNodeBasedOnTimeTaken = {};
 var colorNodeBasedOnMemUsage = {};
 
 function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, config) {
+	//console.time("1")
+
 	hljs.initHighlightingOnLoad();
 	var cola = cola.d3adaptor();
 	var nodes = dataModel["nodes"]
@@ -14,6 +16,133 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	var nodeIdToDisplayIndex = res.nodeIdToDisplayIndex
 
 	var edges = computeEdges(nodesToDisplay, nodeIdToDisplayIndex)
+
+	var graph = d3.select(destinationDivElem).append("svg")
+		.attr('class', 'dataflowSvg')
+		.attr("width", "100%")
+		.attr("height", "100%")
+		.attr("pointer-events", "all");
+
+	var zoom = d3.behavior.zoom()
+	zoom.on("zoom", redraw)
+	zoom.scale(0.3)
+	//zoom.translate([180,0])
+
+	graph.append('rect')
+		.attr('class', 'background')
+		.attr('width', "100%")
+		.attr('height', "100%")
+		.on("click", function() {$(".dataflow-kernel").fadeTo(0, 1)})
+		.call(zoom);
+
+	var graphElements = graph.append('g')
+							 //.attr("transform", "scale(0.3)translate(180,0)")
+							 .attr("transform", "scale(0.3)")
+
+	graph.append('svg:defs').append('svg:marker')
+		.attr('id', 'end-arrow')
+		.attr('viewBox', '0 -5 10 10')
+		.attr('refX', 8)
+		.attr('markerWidth', 6)
+		.attr('markerHeight', 6)
+		.attr('orient', 'auto')
+		.append('svg:path')
+		.attr('d', 'M0,-5L10,0L0,5L2,0')
+		.attr('stroke-width', '0px')
+		.attr('fill', '#000');
+
+	//console.timeEnd("1")
+
+	//calcDepthOfNodes()					  
+
+	//var constraints = []
+
+	//generateConstraints()
+
+	//console.time("2")
+
+	cola
+	    .linkDistance(150)
+	    .avoidOverlaps(true)
+	    //.flowLayout('y')
+	    .size(getColaDimensions())
+	    .nodes(nodesToDisplay)
+	    .links(edges)
+	    //.constraints(constraints)
+	    .jaccardLinkLengths()
+
+	//console.timeEnd("2")
+
+	//console.time("3")
+
+	var link = graphElements.selectAll(".link")
+	    .data(edges)
+	    .enter().append("line")
+	    .attr("class", "link");
+
+	var margin = 6, pad = 12;
+	var node = graphElements.selectAll(".node")
+	    .data(nodesToDisplay)
+	    .enter().append("rect")
+	    .attr("fill", colorNodeBasedOnDataDeps)
+	    .attr("rx", 5).attr("ry", 5)
+	    .attr("id", function(d) {return "dfg-" + d.id})
+	    .on("click", nodeClickHandler)
+	    .attr("class", "dataflow-kernel")
+	    .call(cola.drag);
+
+	var label = graphElements.selectAll(".label")
+	    .data(nodesToDisplay)
+	    .enter().append("text")
+	    .attr("class", "label")
+	    .text(function (d) { return d.name; })
+	    .on("click", nodeClickHandler)
+	    .call(cola.drag)
+	    .each(function (d) {
+	        var b = this.getBBox();
+	        var extra = 2 * margin + 2 * pad;
+	        d.width = b.width + extra;
+	        d.height = b.height + extra;
+	    });
+
+	//console.timeEnd("3")
+
+	var kernel_nodes = $(".dataflow-kernel") // to optimize dom_selection.
+
+	//console.time("4")
+
+	var ticks = 0
+	//cola.start(20, 20, 20).on("tick", function () {
+	cola.start(10, 10, 10).on("tick", function () {
+		//console.time("5")
+	    node.each(function (d) { d.innerBounds = d.bounds.inflate(-margin); })
+	        .attr("x", function (d) { return d.innerBounds.x; })
+	        .attr("y", function (d) { return d.innerBounds.y; })
+	        .attr("width", function (d) { return d.innerBounds.width(); })
+	        .attr("height", function (d) { return d.innerBounds.height(); });
+	    
+	    //console.timeEnd("5")
+	    //console.time("6")
+
+	    link.each(function (d) {
+		        vpsc.makeEdgeBetween(d, d.source.innerBounds, d.target.innerBounds, 5);})
+	        .attr("x1", function (d) { return d.sourceIntersection.x; })
+	        .attr("y1", function (d) { return d.sourceIntersection.y; })
+	        .attr("x2", function (d) { return d.arrowStart.x; })
+	        .attr("y2", function (d) { return d.arrowStart.y; });
+
+	    label.attr("x", function (d) { return d.x })
+	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
+
+	    //console.timeEnd("6")
+
+	    ticks++
+	    if (ticks > 5) {
+	    	cola.stop()	
+	    }
+	});
+
+	//console.timeEnd("4")
 
 	function filterNodes(nodes) {
 		// TODO: We would need to adjust the edges based on the level
@@ -41,45 +170,9 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 		return edges
 	}
 
-	var graph = d3.select(destinationDivElem).append("svg")
-		.attr('class', 'dataflowSvg')
-		.attr("width", "100%")
-		.attr("height", "100%")
-		.attr("pointer-events", "all");
-
-	var zoom = d3.behavior.zoom()
-	zoom.on("zoom", redraw)
-	zoom.scale(0.3)
-	//zoom.translate([180,0])
-
-	graph.append('rect')
-		.attr('class', 'background')
-		.attr('width', "100%")
-		.attr('height', "100%")
-		.on("click", function() {$(".dataflow-kernel").fadeTo(0, 1)})
-		.call(zoom);
-
-	var graphElements = graph.append('g')
-							 //.attr("transform", "scale(0.3)translate(180,0)")
-							 .attr("transform", "scale(0.3)")
-
 	function redraw() {
 		graphElements.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")");
 	}
-
-	graph.append('svg:defs').append('svg:marker')
-		.attr('id', 'end-arrow')
-		.attr('viewBox', '0 -5 10 10')
-		.attr('refX', 8)
-		.attr('markerWidth', 6)
-		.attr('markerHeight', 6)
-		.attr('orient', 'auto')
-		.append('svg:path')
-		.attr('d', 'M0,-5L10,0L0,5L2,0')
-		.attr('stroke-width', '0px')
-		.attr('fill', '#000');
-
-	calcDepthOfNodes()
 
 	function calcDepthOfNodes() {
 	    var startingNodes = nodesToDisplay.filter(function(n) {return (n != undefined) && (n.numInputs == 0) && (n.controlDeps) && (n.antiDeps)})
@@ -131,9 +224,8 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 			case 'Conditional': return "green"
 			default			  : return "white"
 		}
-	}					  
+	}	
 
-	var constraints = []
 	function generateConstraints() {
 	    edges.map(function(e) {return {source: nodesToDisplay[e.source], target: nodesToDisplay[e.target]}})
 	         .forEach(function(e) {
@@ -143,79 +235,11 @@ function createDataFlowGraph(cola, destinationDivElem, dataModel, viewState, con
 	            constraints.push({"axis": "y", "left": toDisplayIndex(s.id), "right": toDisplayIndex(t.id), "gap": minDiffInY})
 	         })
 	}
-
-	generateConstraints()
-
+	
 	function getColaDimensions() {
 		var p = $('.dataflowSvg').parent()
 		return [p.width(), p.height()];
 	}
-
-	cola
-	    .linkDistance(150)
-	    .avoidOverlaps(true)
-	    //.flowLayout('y')
-	    .size(getColaDimensions())
-	    .nodes(nodesToDisplay)
-	    .links(edges)
-	    //.constraints(constraints)
-	    .jaccardLinkLengths()
-
-	var link = graphElements.selectAll(".link")
-	    .data(edges)
-	    .enter().append("line")
-	    .attr("class", "link");
-
-	var margin = 6, pad = 12;
-	var node = graphElements.selectAll(".node")
-	    .data(nodesToDisplay)
-	    .enter().append("rect")
-	    .attr("fill", colorNodeBasedOnDataDeps)
-	    .attr("rx", 5).attr("ry", 5)
-	    .attr("id", function(d) {return "dfg-" + d.id})
-	    .on("click", nodeClickHandler)
-	    .attr("class", "dataflow-kernel")
-	    .call(cola.drag);
-
-	var label = graphElements.selectAll(".label")
-	    .data(nodesToDisplay)
-	    .enter().append("text")
-	    .attr("class", "label")
-	    .text(function (d) { return d.name; })
-	    .on("click", nodeClickHandler)
-	    .call(cola.drag)
-	    .each(function (d) {
-	        var b = this.getBBox();
-	        var extra = 2 * margin + 2 * pad;
-	        d.width = b.width + extra;
-	        d.height = b.height + extra;
-	    });
-
-	var kernel_nodes = $(".dataflow-kernel") // to optimize dom_selection.
-
-	var ticks = 0
-	cola.start(20, 20, 20).on("tick", function () {
-	    node.each(function (d) { d.innerBounds = d.bounds.inflate(-margin); })
-	        .attr("x", function (d) { return d.innerBounds.x; })
-	        .attr("y", function (d) { return d.innerBounds.y; })
-	        .attr("width", function (d) { return d.innerBounds.width(); })
-	        .attr("height", function (d) { return d.innerBounds.height(); });
-
-	    link.each(function (d) {
-		        vpsc.makeEdgeBetween(d, d.source.innerBounds, d.target.innerBounds, 5);})
-	        .attr("x1", function (d) { return d.sourceIntersection.x; })
-	        .attr("y1", function (d) { return d.sourceIntersection.y; })
-	        .attr("x2", function (d) { return d.arrowStart.x; })
-	        .attr("y2", function (d) { return d.arrowStart.y; });
-
-	    label.attr("x", function (d) { return d.x })
-	         .attr("y", function (d) { return d.y + (margin + pad) / 2 });
-
-	    ticks++
-	    if (ticks > 5) {
-	    	cola.stop()	
-	    }
-	});
 
 	function nodeClickHandler(node) {
 		var sc = node.sourceContext
